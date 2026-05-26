@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Перечень сертификатов</title>
+  <style>
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+
+    th,
+    td {
+      border: 1px solid #ddd;
+      padding: 8px;
+    }
+
+    th {
+      background: #f5f5f5;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>Перечень сертификатов</h1>
+
+  <table>
+    <tr>
+      <th>Имя субъекта: ОГРН</th>
+      <th>Имя субъекта: Организация</th>
+      <th>Имя субъекта: GID Организации</th>
+      <th>Имя субъекта: Фамилия</th>
+      <th>Имя субъекта: Имя и отчество</th>
+      <th>Имя субъекта: Подразделение</th>
+      <th>Имя субъекта: Должность или звание</th>ы
+      <th>Имя субъекта: Общее имя</th>
+      <th>Серийный номер</th>
+      <th>Имя субъекта: СНИЛС</th>
+      <th>Статус сертификата</th>
+      <th>Шаблон сертификата</th>
+      <th>Дата отзыва</th>
+      <th>Действителен с</th>
+      <th>Действителен до</th>
+    </tr>
+
+    {% for c in certificate_report_rows %}
+    <tr>
+      <td>{{ c.ogrn }}</td>
+      <td>{{ c.organization_name }}</td>
+      <td>{{ c.guid }}</td>
+      <td>{{ c.surname }}</td>
+      <td>{{ c.given_name }}</td>
+      <td>{{ c.organizational_unit_name }}</td>
+      <td>{{ c.title }}</td>
+      <td>{{ c.common_name }}</td>
+      <td>{{ c.serial_number }}</td>
+      <td>{{ c.snils }}</td>
+      <td>{{ c.status }}</td>
+      <td>{{ c.certificate_template }}</td>
+      <td>{{ c.revoked_when }}</td>
+      <td>{{ c.not_before }}</td>
+      <td>{{ c.not_after }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+
+</body>
+
+</html>

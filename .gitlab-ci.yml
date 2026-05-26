@@ -1,0 +1,17 @@
+stages:
+  - build
+
+build:
+  stage: build
+  image: fff-ffff-ffffff.ffff.fff.fffffff.fffff/xctr-project/executor:v0.00.0-fffff
+  tags:
+    - docker, INTERNAL_PRODUCT
+  before_script:
+    - echo "{\"auths\":{\"$BASE_AUTH\":{\"auth\":\"$(echo -n ${USERNAME}:${PASSWORD} | base64 -w 0)\"}}}" > /xctr/.docker/config.json
+  script:
+    - /xctr/executor
+      --context ${CI_PROJECT_DIR}
+      --dockerfile docker/Dockerfile
+      --destination $BASE_AUTH/$CI_PROJECT_NAME:latest
+  after_script:
+    - rm /xctr/.docker/config.json
