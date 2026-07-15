@@ -1,17 +1,15 @@
-import base64
 from datetime import datetime
-from functools import cached_property
+from uuid import UUID
 
-from cryptography import x509
-from pydantic import Field, field_validator
+from pydantic import Field
 
-from .base import APIModel
+from .base import DTOModel
 from .extension import Extension
 from .name_attributes import NameAttributes
 
 
-class CertificateBase(APIModel):
-    id: str
+class CertificateBaseDTO(DTOModel):
+    id: UUID
     name_attributes: NameAttributes = Field(validation_alias="nameAttributes")
 
     serial_number: str = Field(validation_alias="serialNumber")
@@ -25,16 +23,16 @@ class CertificateBase(APIModel):
     status: str
 
 
-class CertificateSummary(CertificateBase): ...
+class CertificateSummaryDTO(CertificateBaseDTO): ...
 
 
-class CertificateDetail(CertificateBase):
+class CertificateDetailDTO(CertificateBaseDTO):
     cert_request_id: str | None = Field(None, validation_alias="certRequestId")
     subject: str | None = None
     issuer: str | None = None
-    user_id: str | None = Field(None, validation_alias="userId")
+    user_id: UUID | None = Field(None, validation_alias="userId")
 
-    version: int | None = None
+    version: int = 3
 
     public_key: str | None = Field(None, validation_alias="publicKey")
     public_key_parameters: str | None = Field(
@@ -63,35 +61,3 @@ class CertificateDetail(CertificateBase):
     revoked_when: datetime | None = Field(None, validation_alias="revokedWhen")
 
     folder: str | None = None
-
-    @field_validator("raw_certificate", mode="before")
-    @classmethod
-    def _parse_raw_certificate(cls, value):
-        if value is None:
-            return None
-
-        if isinstance(value, bytes):
-            return value
-
-        if not isinstance(value, str):
-            raise TypeError("raw_certificate must be str or bytes")
-
-        value = value.strip()
-
-        return cls._decode_certificate(value)
-
-    @staticmethod
-    def _decode_certificate(value: str) -> bytes:
-        if value.startswith("\\x"):
-            return bytes.fromhex(value.replace("\\x", ""))
-
-        if all(c in "0123456789abcdefABCDEF" for c in value):
-            return bytes.fromhex(value)
-
-        return base64.b64decode(value, validate=True)
-
-    @cached_property
-    def x509(self) -> x509.Certificate:
-        if not self.raw_certificate:
-            raise ValueError("Certificate is empty.")
-        return x509.load_der_x509_certificate(self.raw_certificate)

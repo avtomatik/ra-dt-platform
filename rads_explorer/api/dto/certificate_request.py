@@ -1,15 +1,15 @@
 from datetime import datetime
-from functools import cached_property
+from uuid import UUID
 
 from pydantic import Field
 
-from .base import APIModel
+from .base import DTOModel
 from .extension import Extension
 from .name_attributes import NameAttributes
 
 
-class CertificateRequest(APIModel):
-    id: str
+class CertificateRequest(DTOModel):
+    id: UUID
     name_attributes: NameAttributes = Field(validation_alias="nameAttributes")
 
     created_when: datetime = Field(validation_alias="createdWhen")
@@ -22,18 +22,18 @@ class CertificateRequest(APIModel):
 
     status: str
 
-    user_id: str | None = Field(None, validation_alias="userId")
+    user_id: UUID | None = Field(None, validation_alias="userId")
     subject: str | None = None
 
-    creator_id: str | None = Field(None, validation_alias="creatorId")
+    creator_id: UUID | None = Field(None, validation_alias="creatorId")
     creator_name: str | None = Field(None, validation_alias="creatorName")
     creator_login: str | None = Field(None, validation_alias="creatorLogin")
 
-    resolver_id: str | None = Field(None, validation_alias="resolverId")
+    resolver_id: UUID | None = Field(None, validation_alias="resolverId")
     resolver_name: str | None = Field(None, validation_alias="resolverName")
     resolver_login: str | None = Field(None, validation_alias="resolverLogin")
 
-    version: int | None = None
+    version: int = 1
 
     public_key: str | None = Field(None, validation_alias="publicKey")
     public_key_parameters: str | None = Field(
@@ -58,12 +58,8 @@ class CertificateRequest(APIModel):
 
     extensions: list[Extension] | None = None
 
-    raw_request: str | None = Field(None, validation_alias="rawRequest")
+    raw_request: bytes | None = Field(None, validation_alias="rawRequest")
 
     folder: str | None = None
 
-    certificate_id: str | None = Field(None, validation_alias="certificateId")
-
-    @cached_property
-    def pkcs7_blob(self):
-        raise NotImplementedError("PKCS#7 parsing not implemented yet.")
+    certificate_id: UUID | None = Field(None, validation_alias="certificateId")

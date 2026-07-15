@@ -4,7 +4,7 @@ def test_cert_requests_list(client):
 
 
 def test_certificates_list(client):
-    result = client.certificates.list()
+    result = client.certificates.list_page()
     assert len(result.items) > 0
 
 

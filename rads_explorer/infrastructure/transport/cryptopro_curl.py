@@ -130,9 +130,7 @@ class CryptoProCurlTransport:
 
         headers, body = raw.split(separator, 1)
 
-        assert body, "HTTP body is empty."
-
-        return headers, body
+        return headers, body or ""
 
     def _parse_headers(self, block: str):
         result = {}

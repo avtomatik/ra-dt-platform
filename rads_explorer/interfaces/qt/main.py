@@ -12,7 +12,7 @@ def main():
     container = get_container()
     certificate_service = container.certificate_service()
 
-    window = MainWindow(certificate_service)
+    window = MainWindow(certificate_service, container.snapshot_provider())
     window.show()
 
     sys.exit(app.exec())

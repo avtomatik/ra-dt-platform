@@ -681,7 +681,6 @@ dependencies = [
     { name = "jinja2" },
     { name = "openpyxl" },
     { name = "pydantic-settings" },
-    { name = "pyside6" },
     { name = "requests" },
     { name = "uvicorn" },
 ]
@@ -701,7 +700,6 @@ requires-dist = [
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "openpyxl", specifier = ">=3.1.5" },
     { name = "pydantic-settings", specifier = ">=2.14.1" },
-    { name = "pyside6", specifier = ">=6.11.1" },
     { name = "requests", specifier = ">=2.34.2" },
     { name = "uvicorn", specifier = ">=0.48.0" },
 ]

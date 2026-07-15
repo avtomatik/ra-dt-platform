@@ -2,11 +2,12 @@ from typing import Any
 
 from pydantic import ConfigDict, Field
 
-from .base import APIModel
-from .oids import OID
+from rads_explorer.certificate_domain.constants.oids import OID
+
+from .base import DTOModel
 
 
-class NameAttributes(APIModel):
+class NameAttributes(DTOModel):
     model_config = ConfigDict(extra="allow")
 
     # =========================================================================

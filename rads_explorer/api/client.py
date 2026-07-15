@@ -13,7 +13,7 @@ class CertificatesApi:
     def __init__(self, transport):
         self.transport = transport
 
-    def list(self):
+    def list_page(self):
         response = self.transport.get(CERTIFICATES)
         data = ensure_json(ensure_success(response))
         return parse_certificates(data)
@@ -24,7 +24,7 @@ class CertificatesApi:
         return parse_certificates(data)
 
     def iter_all(self):
-        first_page = self.list()
+        first_page = self.list_page()
         yield from paginate(first_page, self._fetch_href)
 
     def list_all(self):

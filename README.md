@@ -289,7 +289,7 @@ Example:
 ```env
 RADS_TRANSPORT=curl
 
-RADS_API_BASE_URL=https://service-host
+RADS_API_BASE_URL=http://emulator:8000
 
 RADS_CURL_PATH=/opt/product/bin/amd64/curl
 

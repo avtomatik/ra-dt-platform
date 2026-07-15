@@ -1,16 +1,14 @@
 services:
   rads-explorer:
     image: ra-ds-explorer:latest
-    container_name: ra-ds-explorer
+    container_name: explorer
 
     build:
       context: .
       dockerfile: docker/Dockerfile
-      args:
-        HTTPS_PROXY: ${HTTPS_PROXY}
 
     ports:
-      - "8000:8000"
+      - "9000:9000"
 
     env_file:
       - .env
@@ -25,17 +23,11 @@ services:
       RADS_API_BASE_URL: ${RADS_API_BASE_URL}
       RADS_DEBUG_HTTP: ${RADS_DEBUG_HTTP}
 
-      DISPLAY: ${DISPLAY}
-      QT_X11_NO_MITSHM: "1"
-
-    volumes:
-      - /opt/product:/opt/product:ro
-      - /etc/opt/product:/etc/opt/product:ro
-      - /var/opt/product:/var/opt/product
-      - ./exports:/app/exports
-      - ./logs:/app/logs
-
-      - /tmp/.X11-unix:/tmp/.X11-unix:rw
-      - /dev/dri:/dev/dri
-
     restart: always
+
+    networks:
+      - ra-network
+
+networks:
+  ra-network:
+    external: true

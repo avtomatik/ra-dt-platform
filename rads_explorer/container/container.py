@@ -10,6 +10,13 @@ from rads_explorer.application.services.certificate_service import \
     CertificateService
 from rads_explorer.application.services.search_service import SearchService
 from rads_explorer.application.services.user_service import UserService
+from rads_explorer.certificate_domain.snapshot.factory import \
+    CertificateSnapshotFactory
+from rads_explorer.certificate_domain.snapshot.memory_cache import \
+    MemorySnapshotCache
+from rads_explorer.certificate_domain.snapshot.memory_repository import \
+    MemorySnapshotRepository
+from rads_explorer.certificate_domain.snapshot.provider import SnapshotProvider
 from rads_explorer.config.enums import TransportMode
 from rads_explorer.config.settings import Settings
 from rads_explorer.data.export.xlsx import XLSXExporter
@@ -29,6 +36,14 @@ class Container:
         self._transport = self._build_transport()
         self._client = RADSClient(self._transport)
         self._certificate_cache = CertificateDetailCache()
+
+        self._snapshot_cache = MemorySnapshotCache()
+        self._snapshot_repository = MemorySnapshotRepository()
+        self._snapshot_provider = SnapshotProvider(
+            cache=self._snapshot_cache,
+            repository=self._snapshot_repository,
+            factory=CertificateSnapshotFactory(),
+        )
 
         logger.info("Transport mode: %s", self._settings.transport)
         logger.info("API base URL: %s", self._settings.api_base_url)
@@ -66,10 +81,16 @@ class Container:
         return SearchService(self._client)
 
     def report_service(self):
-        return ReportService(self.certificate_service())
+        return ReportService(
+            certificate_service=self.certificate_service(),
+            snapshot_provider=self.snapshot_provider(),
+        )
 
     def exporter(self):
         return XLSXExporter()
+
+    def snapshot_provider(self):
+        return self._snapshot_provider
 
 
 @lru_cache

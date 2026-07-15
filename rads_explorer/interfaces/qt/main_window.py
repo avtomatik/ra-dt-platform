@@ -9,13 +9,15 @@ from rads_explorer.interfaces.qt.models.certificate_table_model import \
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, certificate_service):
+    def __init__(self, certificate_service, snapshot_provider):
         super().__init__()
 
         self.setWindowTitle("RADS Explorer - Certificate Console")
         self.resize(1200, 700)
 
-        self.controller = CertificateController(certificate_service)
+        self.controller = CertificateController(
+            certificate_service, snapshot_provider
+        )
         self.controller.results_ready.connect(self.on_results)
         self.controller.error.connect(self.on_error)
 

@@ -1,9 +1,9 @@
-from rads_explorer.api.schemas.cert_request import CertificateRequest
-from rads_explorer.api.schemas.certificate import CertificateDetail
-from rads_explorer.api.schemas.responses import (CertificateRequestsResponse,
-                                                 CertificatesResponse,
-                                                 UsersResponse)
-from rads_explorer.api.schemas.user import User
+from rads_explorer.api.dto.certificate import CertificateDetailDTO
+from rads_explorer.api.dto.certificate_request import CertificateRequest
+from rads_explorer.api.dto.responses import (CertificateRequestsResponse,
+                                             CertificatesResponse,
+                                             UsersResponse)
+from rads_explorer.api.dto.user import User
 from rads_explorer.application.exceptions import (APIContractError,
                                                   ValidationError)
 
@@ -22,7 +22,7 @@ def parse_certificates(data):
 
 
 def parse_certificate_detail(data):
-    return _parse(CertificateDetail, data)
+    return _parse(CertificateDetailDTO, data)
 
 
 def parse_cert_request(data):
