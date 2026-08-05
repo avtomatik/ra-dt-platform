@@ -1,11 +1,14 @@
 services:
-  rads-explorer:
-    image: ra-ds-explorer:latest
-    container_name: explorer
+  radp:
+    container_name: platform
 
     build:
       context: .
       dockerfile: docker/Dockerfile
+
+    image: radp:latest
+
+    restart: unless-stopped
 
     ports:
       - "9000:9000"
@@ -13,20 +16,43 @@ services:
     env_file:
       - .env
 
-    environment:
-      RADS_ENV: ${RADS_ENV}
-      RADS_CURL_PATH: ${RADS_CURL_PATH}
-      RADS_CERT_THUMBPRINT: ${RADS_CERT_THUMBPRINT}
-      RADS_TRANSPORT: ${RADS_TRANSPORT}
-      RADS_TIMEOUT: ${RADS_TIMEOUT}
-      RADS_VERIFY_TLS: ${RADS_VERIFY_TLS}
-      RADS_API_BASE_URL: ${RADS_API_BASE_URL}
-      RADS_DEBUG_HTTP: ${RADS_DEBUG_HTTP}
+    depends_on:
+      postgres:
+        condition: service_healthy
 
-    restart: always
+    volumes:
+      - ./data:/app/data
 
     networks:
       - ra-network
+
+  postgres:
+    image: postgres:17
+    container_name: radp-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: ${RADP_DATABASE_NAME}
+      POSTGRES_USER: ${RADP_DATABASE_USER}
+      POSTGRES_PASSWORD: ${RADP_DATABASE_PASSWORD}
+
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${RADP_DATABASE_USER} -d ${RADP_DATABASE_NAME}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    ports:
+      - "5432:5432"
+
+    networks:
+      - ra-network
+
+volumes:
+  postgres-data:
 
 networks:
   ra-network:

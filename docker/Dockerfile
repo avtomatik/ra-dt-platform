@@ -6,23 +6,31 @@ WORKDIR /app
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    curl \
-    ca-certificates \
+        curl \
+        ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml uv.lock README.md ./
 
-RUN pip install --no-cache-dir uv 
+RUN pip install --no-cache-dir uv
 
 RUN uv sync --frozen --no-dev
 
-COPY rads_explorer ./rads_explorer
+COPY radp ./radp
 
 COPY html ./html
 
+COPY data ./data
+
+RUN mkdir -p /app/data
+
 EXPOSE 9000
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost:9000/health || exit 1
+HEALTHCHECK \
+    --interval=30s \
+    --timeout=5s \
+    --start-period=15s \
+    --retries=3 \
+    CMD curl -fsS http://localhost:9000/health || exit 1
 
-CMD ["/app/.venv/bin/uvicorn", "rads_explorer.interfaces.main:app", "--host", "0.0.0.0", "--port", "9000"]
+CMD [ "/app/.venv/bin/uvicorn", "radp.interfaces.api.main:app", "--host", "0.0.0.0", "--port", "9000" ]

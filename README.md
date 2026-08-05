@@ -1,405 +1,503 @@
-# RA Data Service Explorer
+# RA DP — Платформа данных Центра регистрации
 
-`ra-ds-explorer` is an enterprise-oriented Python client and service framework for interacting with GOST-enabled Registration Authority (RA) REST APIs.
+RA DP (Registration Authority Data Platform) — локальная аналитическая платформа для получения, накопления, обработки и анализа данных из REST API Центра регистрации.
 
-The project provides:
+Проект предназначен не для замены API Центра регистрации, а для построения собственного локального слоя данных, позволяющего:
 
-- authenticated RA API communication
-- CryptoPro-compatible mutual TLS transport
-- typed API models
-- certificate/user/request operations
-- offline fixture-based development mode
-- reporting and export capabilities
-- service-layer abstractions suitable for GUI integration
+- выполнять синхронизацию сертификатов;
+- сохранять их локальные снимки (snapshots);
+- выполнять анализ без повторных запросов к API;
+- строить отчёты;
+- экспортировать данные в Excel;
+- использовать накопленную базу как источник для последующей аналитики.
 
-The project is designed for secured enterprise environments where:
+Основной принцип проекта:
 
-- client authentication uses certificates
-- CryptoPro CSP tooling is already deployed
-- direct OpenSSL integration is undesirable
-- internet access may be restricted
-- runtime environments must be controlled and reproducible
+> **API Центра регистрации — источник данных.  
+> Локальная база — источник аналитики.**
 
 ---
 
-# Current Project Status
-
-The current implementation provides:
-
-## API Client Layer
-
-Implemented:
-
-- certificate API access
-- user API access
-- certificate request API access
-- pagination handling
-- response validation
-- typed schema parsing
-
-Architecture:
-
-```
-
-Application Services
-↓
-API Client
-↓
-Transport Layer
-↓
-RA REST API
-
-```
+> **Статус:** активная разработка (Stage 1 — Data Acquisition Platform).
+> Текущая цель — построение локальной платформы накопления и анализа данных Центра регистрации. Следующим этапом станет переход к полнофункциональной аналитической системе с PostgreSQL, планировщиком синхронизации, веб-интерфейсом оператора и событийной обработкой.
 
 ---
 
-# Transport Architecture
+# Основные возможности
 
-The project intentionally separates API logic from transport execution.
+На текущий момент реализовано:
 
-Supported transports:
+- клиент REST API Центра регистрации;
+- автоматическая постраничная обработка ответов;
+- получение полного содержимого сертификатов;
+- декодирование X.509 сертификатов;
+- извлечение структуры сертификата;
+- локальное хранение снимков сертификатов;
+- локальный справочник OID;
+- генерация XLSX-отчётов;
+- FastAPI-интерфейс;
+- поддержка HTTP и CryptoPro curl транспорта;
+- подготовленная архитектура для PostgreSQL.
 
-## Fixture Transport
+---
 
-Used for:
+# Архитектура
 
-- offline development
-- deterministic testing
-- CI pipelines
-- API contract validation
-
-Flow:
+Проект следует принципам Clean Architecture / Onion Architecture.
 
 ```
-
-Application
-↓
-API Client
-↓
-Fixture Transport
-↓
-Local JSON Fixtures
-
+                   +----------------------+
+                   |      FastAPI         |
+                   |  Web / REST API      |
+                   +----------+-----------+
+                              |
+                              v
+                   +----------------------+
+                   |     Application      |
+                   | synchronization      |
+                   | reporting            |
+                   | scheduler            |
+                   +----------+-----------+
+                              |
+                              v
+                   +----------------------+
+                   |       Domain         |
+                   | snapshots            |
+                   | x509                 |
+                   | models               |
+                   +----------+-----------+
+                              |
+               +--------------+---------------+
+               |                              |
+               v                              v
+    +---------------------+      +------------------------+
+    |   Persistence       |      |      RA API Client     |
+    | SQLite/PostgreSQL   |      | HTTP / curl transport  |
+    +---------------------+      +------------------------+
 ```
 
 ---
 
-## CryptoPro Curl Transport
-
-Used for enterprise environments.
-
-Flow:
+# Структура проекта
 
 ```
+radp/
 
-Application
-↓
-API Client
-↓
-CryptoPro Curl Wrapper
-↓
-CryptoPro CSP
-↓
-GOST Mutual TLS
-↓
-RA API
-
-```
-
-The project does not implement custom cryptography.
-
-It relies on:
-
-- vendor-supported CryptoPro tooling
-- enterprise PKI configuration
-- certificate containers managed externally
-
----
-
-# Project Architecture
-
-Current structure:
-
-```
-
-rads_explorer/
-
-├── api/
-│   ├── client.py
-│   ├── endpoints.py
-│   ├── schemas/
-│   └── parsers.py
-│
 ├── application/
-│   ├── certificate_service.py
-│   ├── user_service.py
-│   ├── cert_request_service.py
-│   └── reports
+│   ├── synchronization/
+│   ├── reporting/
+│   └── scheduler/
+│
+├── config/
+│
+├── domain/
+│   ├── models/
+│   └── snapshots/
 │
 ├── infrastructure/
-│   ├── transport/
-│   └── fixtures/
-│
-├── data/
-│   ├── repository.py
-│   ├── reports.py
-│   └── export/
+│   ├── persistence/
+│   ├── ra_api/
+│   └── transport/
 │
 ├── interfaces/
-│   └── FastAPI interface layer
+│   └── api/
 │
-└── container/
-└── dependency composition
-
+├── oid_registry/
+│
+├── runtime.py
+└── version.py
 ```
 
 ---
 
-# Development Mode
+# Жизненный цикл данных
 
-The project supports fully offline execution.
-
-Fixtures provide:
-
-- certificates
-- users
-- certificate requests
-- certificate details
-
-Example workflow:
+Работа платформы строится следующим образом.
 
 ```
-
-Fixture JSON
-↓
-Fixture Loader
-↓
-Repository
-↓
-Reports / Services / API
-
+Центр регистрации
+        │
+        ▼
+RA REST API
+        │
+        ▼
+RAClient
+        │
+        ▼
+CertificateSynchronizationService
+        │
+        ▼
+Проверка SnapshotRepository
+        │
+        ├──────────────► сертификат уже существует
+        │                     │
+        │                     ▼
+        │                  пропуск
+        │
+        ▼
+GET /certificates/{id}
+        │
+        ▼
+CertificateSnapshotFactory
+        │
+        ▼
+SnapshotRepository
+        │
+        ▼
+SQLite / PostgreSQL
 ```
 
-This allows development without:
-
-- RA server access
-- CryptoPro installation
-- network connectivity
+После этого вся дальнейшая работа ведётся исключительно с локальной базой данных.
 
 ---
 
-# Testing
+# Snapshot-модель
 
-The project contains:
+Каждый сертификат сохраняется в виде полного снимка.
 
-## Unit Tests
+Snapshot содержит:
 
-Covers:
+- служебные метаданные;
+- полную структуру X.509;
+- Subject;
+- Issuer;
+- Extensions;
+- Public Key;
+- алгоритмы;
+- отпечатки;
+- сериализованное содержимое сертификата.
 
-- services
-- parsers
-- data layer
-- exports
-
-## API Contract Tests
-
-Covers:
-
-- fixture API behavior
-- schema validation
-- certificate parsing
-
-## Integration Tests
-
-Prepared for:
-
-- real RA API access
-- CryptoPro transport verification
+Снимок является неизменяемым объектом предметной области.
 
 ---
 
-# Reporting and Export
+# Синхронизация
 
-Implemented:
-
-## Certificate Reports
-
-Examples:
-
-- expiring certificates
-- issuer distribution
-- certificate searches
-
-## Export
-
-Supported:
-
-- XLSX generation
-
-Example:
+За обновление локальной базы отвечает
 
 ```
+CertificateSynchronizationService
+```
 
-RA API
-↓
-Repository
-↓
-Report Service
-↓
-XLSX Export
+Алгоритм работы:
 
+1. получить первую страницу сертификатов;
+2. пройти по всем страницам;
+3. для каждого идентификатора проверить наличие последнего snapshot;
+4. если snapshot существует — пропустить сертификат;
+5. если отсутствует — запросить полный сертификат;
+6. построить Snapshot;
+7. сохранить его в БД.
+
+Таким образом сетевой запрос выполняется только один раз для каждого нового сертификата.
+
+---
+
+# Отчёты
+
+Отчёты никогда не обращаются к REST API.
+
+Источник данных только один:
+
+```
+SnapshotRepository
+```
+
+Поток данных:
+
+```
+SnapshotRepository
+        │
+        ▼
+Projection
+        │
+        ▼
+CertificateReportService
+        │
+        ▼
+XLSXExporter
+        │
+        ▼
+Excel
+```
+
+Это позволяет:
+
+- строить сложные отчёты;
+- изменять проекции без изменения API;
+- выполнять аналитику офлайн.
+
+---
+
+# Транспортный слой
+
+Логика работы с REST API полностью отделена от реализации транспорта.
+
+Поддерживаются два транспорта.
+
+## HTTP
+
+Используется для:
+
+- локальной разработки;
+- тестирования;
+- эмулятора Центра регистрации.
+
+```
+RAClient
+      │
+      ▼
+HTTPTransport
+      │
+      ▼
+REST API
 ```
 
 ---
 
-# Running Locally
+## CryptoPro curl
 
-Install dependencies:
+Используется в промышленной среде.
+
+```
+RAClient
+      │
+      ▼
+CurlTransport
+      │
+      ▼
+CryptoPro curl
+      │
+      ▼
+mTLS
+      │
+      ▼
+REST API
+```
+
+Python не реализует криптографию самостоятельно.
+
+Все криптографические операции выполняются средствами CryptoPro CSP.
+
+---
+
+# Клиент REST API
+
+Основной клиент расположен в
+
+```
+radp/infrastructure/ra_api/client.py
+```
+
+В настоящий момент поддерживаются операции:
+
+- получение первой страницы сертификатов;
+- перебор всех сертификатов;
+- получение сертификата по идентификатору;
+- поиск сертификатов.
+
+Клиент не содержит бизнес-логики.
+
+Он отвечает исключительно за взаимодействие с REST API.
+
+---
+
+# Хранилище данных
+
+В настоящий момент используется SQLite.
+
+Архитектура полностью подготовлена к переходу на PostgreSQL.
+
+Подключение осуществляется через SQLAlchemy.
+
+Строка подключения формируется из параметров конфигурации.
+
+В дальнейшем достаточно изменить настройки:
+
+```
+SQLite
+
+↓
+
+PostgreSQL
+```
+
+без изменения прикладного кода.
+
+---
+
+# OID Registry
+
+Платформа содержит собственный локальный справочник OID.
+
+При первом запуске автоматически выполняется загрузка:
+
+```
+data/seed/oid_registry.json
+```
+
+Справочник используется при построении Snapshot для расшифровки:
+
+- Distinguished Name;
+- Extensions;
+- Public Key Algorithm;
+- Signature Algorithm.
+
+---
+
+# FastAPI
+
+FastAPI используется как интерфейс доступа к платформе.
+
+Маршруты разделены по функциональности.
+
+```
+interfaces/api/
+
+adapter.py
+admin.py
+debug.py
+export.py
+health.py
+main.py
+runtime.py
+web.py
+```
+
+Runtime создаётся один раз и используется всеми обработчиками.
+
+---
+
+# Runtime
+
+Композиция зависимостей сосредоточена в
+
+```
+radp/runtime.py
+```
+
+Runtime отвечает за создание:
+
+- Settings;
+- Transport;
+- RAClient;
+- Repository;
+- SnapshotFactory;
+- SynchronizationService;
+- ReportingService.
+
+Для FastAPI используется singleton:
+
+```
+get_runtime()
+```
+
+что исключает повторную инициализацию объектов.
+
+---
+
+# Планировщик
+
+Подготовлена структура для автоматической синхронизации.
+
+```
+application/
+    scheduler/
+        certificate_sync_job.py
+```
+
+Предполагается запуск по расписанию (например, APScheduler).
+
+Типичный сценарий:
+
+- ежедневно;
+- один проход по API;
+- обновление локальной базы;
+- генерация отчётов.
+
+---
+
+# Конфигурация
+
+Настройки читаются через Pydantic Settings.
+
+Пример:
+
+```env
+RADP_TRANSPORT=http
+
+RADP_API_BASE_URL=http://localhost:8000
+RADP_API_PREFIX=/api/ra
+
+RADP_DB_DRIVER=sqlite
+RADP_DB_NAME=data/radp.sqlite
+
+# PostgreSQL
+
+RADP_DB_HOST=localhost
+RADP_DB_PORT=5432
+RADP_DB_NAME=radp
+RADP_DB_USER=postgres
+RADP_DB_PASSWORD=secret
+
+RADP_CURL_PATH=/opt/cprocsp/bin/amd64/curl
+RADP_CERT_THUMBPRINT=<thumbprint>
+```
+
+---
+
+# Запуск
+
+Установка зависимостей
 
 ```bash
 uv sync
 ```
 
-Run tests:
+Запуск FastAPI
 
 ```bash
-pytest
+uvicorn radp.interfaces.api.main:app --reload
 ```
+<!-- uvicorn radp.interfaces.api.main:app --host 0.0.0.0 --port 9001 --reload -->
 
-Run demo:
+Запуск синхронизации
 
 ```bash
-python tools/run_demo.py
-```
-
-Run fixture API:
-
-```bash
-uvicorn rads_explorer.interfaces.main:app
+python -m radp.main
 ```
 
 ---
 
-# Configuration
+# Дальнейшее развитие
 
-Runtime configuration uses environment variables.
+Планируется:
 
-Example:
-
-```env
-RADS_TRANSPORT=curl
-
-RADS_API_BASE_URL=http://emulator:8000
-
-RADS_CURL_PATH=/opt/product/bin/amd64/curl
-
-RADS_CERT_THUMBPRINT=<certificate-thumbprint>
-```
-
-Transport selection:
-
-```env
-RADS_TRANSPORT=curl
-```
-
-or:
-
-```env
-RADS_TRANSPORT=curl
-```
+- PostgreSQL как основное хранилище;
+- APScheduler;
+- поддержка пользователей;
+- поддержка запросов на сертификаты;
+- расширяемые проекции отчётов;
+- поиск по локальной базе;
+- веб-интерфейс оператора;
+- аналитические панели;
+- контейнеризация Kubernetes;
+- интеграция с Kafka для событийной обработки.
 
 ---
 
-# Deployment Model
+# Основные принципы проекта
 
-Target environments are expected to use isolated runtimes.
-
-Recommended:
-
-```
-/opt/ra-ds-explorer/
-
-├── python/
-├── venv/
-├── app/
-├── wheels/
-├── logs/
-└── exports/
-```
-
-Goals:
-
-* no modification of system Python
-* reproducible installation
-* offline package installation
-* controlled enterprise deployment
+- Простая архитектура важнее универсальной.
+- Бизнес-логика не зависит от транспорта.
+- REST API является источником данных, а не источником отчётов.
+- Локальная база является единственным источником аналитики.
+- Snapshot является каноническим представлением сертификата.
+- Сетевые обращения выполняются только при синхронизации.
+- Все отчёты строятся исключительно по локальным данным.
 
 ---
 
-# Security Model
+# Лицензия
 
-The project follows these principles:
-
-* no private key handling inside Python
-* no custom cryptographic implementation
-* no OpenSSL engine integration
-* no bypassing enterprise PKI controls
-
-Authentication remains the responsibility of:
-
-* CryptoPro CSP
-* enterprise certificate infrastructure
-* configured certificate stores
-
----
-
-# Planned Transition
-
-The original long-term vision of the project includes evolving into a full operator-facing application.
-
-Planned transition:
-
-```
-PySide6 GUI
-      ↓
-Application Services
-      ↓
-RA Client Framework
-      ↓
-CryptoPro Transport
-      ↓
-RA API
-```
-
-Future capabilities may include:
-
-* desktop GUI
-* certificate lifecycle dashboards
-* operator workflows
-* interactive search
-* certificate inspection
-* report generation interface
-* enterprise workstation deployment
-
-The current architecture intentionally preserves this path.
-
-The GUI layer is not implemented yet because the service and transport foundations are being stabilized first.
-
----
-
-# Non-Goals
-
-The project does not aim to:
-
-* replace CryptoPro CSP
-* implement GOST cryptography itself
-* bypass enterprise PKI policies
-* replace RA server functionality
-* depend on cloud services
-* require internet connectivity during operation
-
----
-
-# License
-
-See: [LICENSE](LICENSE.md)
+Проект распространяется в соответствии с лицензией, указанной в файле [LICENSE](LICENSE.md).

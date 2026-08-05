@@ -1,23 +1,23 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: explorer
+  name: platform
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: explorer
+      app: platform
   template:
     metadata:
       labels:
-        app: explorer
+        app: platform
     spec:
       containers:
-        - name: explorer
-          image: ra-ds-explorer:latest
+        - name: platform
+          image: radp:latest
           imagePullPolicy: Never
           ports:
             - containerPort: 9000
           envFrom:
             - configMapRef:
-                name: rads-config
+                name: radp-config

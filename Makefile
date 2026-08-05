@@ -1,7 +1,7 @@
 .PHONY: build up down logs
 
 build:
-	docker build -f docker/Dockerfile -t ra-ds-explorer:latest .
+	docker build -f docker/Dockerfile -t radp:latest .
 
 up:
 	docker compose up -d
