@@ -1,7 +1,10 @@
 import uvicorn
 
 
-def serve(host: str = "127.0.0.1", port: int = 8000):
+def serve(args) -> None:
     uvicorn.run(
-        "radp.interfaces.api.main:app", host=host, port=port, reload=False
+        "radp.interfaces.api.main:app",
+        host=args.host,
+        port=args.port,
+        reload=False,
     )

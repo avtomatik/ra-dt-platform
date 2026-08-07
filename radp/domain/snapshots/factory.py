@@ -1,4 +1,5 @@
 from cryptography import x509
+from cryptography.exceptions import UnsupportedAlgorithm
 from cryptography.hazmat.primitives import hashes, serialization
 
 from radp.domain.models.attribute import DistinguishedNameAttribute
@@ -44,29 +45,7 @@ class CertificateSnapshotFactory:
         )
 
     def _build_x509(self, cert: x509.Certificate, der: bytes) -> X509Snapshot:
-        pub = cert.public_key()
-        pem = pub.public_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PublicFormat.SubjectPublicKeyInfo,
-        ).decode("ascii")
-        fingerprint = hashes.Hash(hashes.SHA256())
-        fingerprint.update(
-            pub.public_bytes(
-                encoding=serialization.Encoding.DER,
-                format=serialization.PublicFormat.SubjectPublicKeyInfo,
-            )
-        )
-        fingerprint_sha256 = fingerprint.finalize().hex()
-        key_size = getattr(pub, "key_size", None)
-        algorithm_oid = cert.public_key_algorithm_oid.dotted_string
-        algorithm_name = cert.public_key_algorithm_oid._name
-        public_key = PublicKeySnapshot(
-            algorithm_oid=algorithm_oid,
-            algorithm_name=algorithm_name,
-            key_size=key_size,
-            fingerprint_sha256=fingerprint_sha256,
-            pem=pem,
-        )
+        public_key = self._build_public_key(cert)
         return X509Snapshot(
             version=self._version_number(cert.version),
             serial_number=cert.serial_number,
@@ -88,6 +67,42 @@ class CertificateSnapshotFactory:
     def _version_number(cls, version: x509.Version) -> int:
         return cls._VERSION_MAPPING[version]
 
+    def _build_public_key(self, cert: x509.Certificate) -> PublicKeySnapshot:
+        algorithm_oid = cert.public_key_algorithm_oid.dotted_string
+        registry = self.oid_repository.get(algorithm_oid)
+        algorithm_name = registry.name if registry else None
+
+        try:
+            pub = cert.public_key()
+        except UnsupportedAlgorithm:
+            # cryptography does not understand this public-key algorithm.
+            # Keep the information that can be obtained without decoding it.
+            return PublicKeySnapshot(
+                algorithm_oid=algorithm_oid,
+                algorithm_name=algorithm_name,
+                key_size=None,
+                fingerprint_sha256=None,
+                pem=None,
+            )
+        pem = pub.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        ).decode("ascii")
+        fingerprint = hashes.Hash(hashes.SHA256())
+        fingerprint.update(
+            pub.public_bytes(
+                encoding=serialization.Encoding.DER,
+                format=serialization.PublicFormat.SubjectPublicKeyInfo,
+            )
+        )
+        return PublicKeySnapshot(
+            algorithm_oid=algorithm_oid,
+            algorithm_name=algorithm_name,
+            key_size=getattr(pub, "key_size", None),
+            fingerprint_sha256=fingerprint.finalize().hex(),
+            pem=pem,
+        )
+
     def _build_name(self, name: x509.Name) -> DistinguishedName:
         attributes = []
         for attribute in name:
@@ -108,7 +123,13 @@ class CertificateSnapshotFactory:
         self, cert: x509.Certificate
     ) -> list[ExtensionSnapshot]:
         result = []
-        for extension in cert.extensions:
+
+        try:
+            extensions = cert.extensions
+        except (ValueError, UnsupportedAlgorithm):
+            return result
+
+        for extension in extensions:
             registry = self.oid_repository.get(extension.oid.dotted_string)
             result.append(
                 ExtensionSnapshot(

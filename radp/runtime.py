@@ -21,25 +21,25 @@ logger = logging.getLogger(__name__)
 class Runtime:
     def __init__(self) -> None:
         self.settings = Settings()
-        # =====================================================================
+        #######################################################################
         # Persistence
-        # =====================================================================
+        #######################################################################
         self.engine = create_engine_from_url(self.settings.database_url)
         self.session_factory = create_session_factory(self.engine)
         self.oid_repository = OIDRepository(self.session_factory)
         self.snapshot_repository = SnapshotRepository(self.session_factory)
-        # =====================================================================
+        #######################################################################
         # RA API
-        # =====================================================================
+        #######################################################################
         self.transport = create_transport(self.settings)
         self.client = RAClient(self.transport)
-        # =====================================================================
+        #######################################################################
         # Domain services
-        # =====================================================================
+        #######################################################################
         self.snapshot_factory = CertificateSnapshotFactory(self.oid_repository)
-        # =====================================================================
+        #######################################################################
         # Application services
-        # =====================================================================
+        #######################################################################
         self.synchronization = CertificateSynchronizationService(
             client=self.client,
             snapshots=self.snapshot_repository,
@@ -48,7 +48,7 @@ class Runtime:
         self.reporting = CertificateReportService(self.snapshot_repository)
 
         logger.info("Transport=%s", self.settings.transport)
-        logger.info("Database=%s", self.settings.database_url)
+        logger.info("Database=%s", self.settings.database_name)
 
     def initialize(self):
         OIDRegistryInitializer(self.oid_repository).initialize()

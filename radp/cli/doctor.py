@@ -1,33 +1,28 @@
-import typer
+import logging
 
 from radp.config.settings import Settings
 
+logger = logging.getLogger(__name__)
 
-def doctor():
-    typer.echo("Configuration")
+
+def doctor(_args) -> None:
+    logger.info("Configuration")
     Settings()
-    typer.echo("  ✓ Settings loaded")
-
-    typer.echo("Database")
-    typer.echo("  ✓ PostgreSQL")
-    typer.echo("  ✓ Connected")
-    typer.echo("  ✓ Schema version: 1")
-
-    typer.echo("OID registry")
-    typer.echo("  ✓ 823 definitions")
-
-    typer.echo("Snapshots")
-    typer.echo("  ✓ 1743 certificates")
-
-    typer.echo("Transport")
-    typer.echo("  ✓ CurlTransport")
-
-    typer.echo("RA API")
-    typer.echo("  ✓ Reachable")
-    typer.echo("  ✓ GET /certificates")
-
-    typer.echo("Synchronization")
-    typer.echo("  ✓ Ready")
-
-    typer.echo("Runtime")
-    typer.echo("  ✓ Healthy")
+    logger.info("  ✓ Settings loaded")
+    logger.info("Database")
+    logger.info("  ✓ PostgreSQL")
+    logger.info("  ✓ Connected")
+    logger.info("  ✓ Schema version: 1")
+    logger.info("OID registry")
+    logger.info("  ✓ 823 definitions")
+    logger.info("Snapshots")
+    logger.info("  ✓ 1743 certificates")
+    logger.info("Transport")
+    logger.info("  ✓ CurlTransport")
+    logger.info("RA API")
+    logger.info("  ✓ Reachable")
+    logger.info("  ✓ GET /certificates")
+    logger.info("Synchronization")
+    logger.info("  ✓ Ready")
+    logger.info("Runtime")
+    logger.info("  ✓ Healthy")

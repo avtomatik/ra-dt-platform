@@ -1,0 +1,19 @@
+services:
+  platform:
+    ports:
+      - "9000:9000"
+      - "5678:5678"
+    command:
+      - /app/.venv/bin/python
+      - -m
+      - debugpy
+      - --listen
+      - 0.0.0.0:5678
+      - --wait-for-client
+      - -m
+      - uvicorn
+      - radp.interfaces.api.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "9000"

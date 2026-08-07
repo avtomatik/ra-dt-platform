@@ -1,6 +1,6 @@
 from typing import Any, Mapping
 
-import requests
+import httpx2
 from pydantic_settings import BaseSettings
 
 from .response import HTTPResponse
@@ -8,10 +8,12 @@ from .url import build_url
 
 
 class HTTPTransport:
+    TIMEOUT_SECONDS = 30
+
     def __init__(self, settings: BaseSettings) -> None:
         self.settings = settings
 
-    def get(
+    async def get(
         self,
         path: str,
         *,
@@ -24,16 +26,12 @@ class HTTPTransport:
             path=path,
             params=params,
         )
-
-        response = requests.get(
-            url, params=params, headers=headers, timeout=30
-        )
-
+        async with httpx2.AsyncClient(timeout=self.TIMEOUT_SECONDS) as client:
+            response = await client.get(url, params=params, headers=headers)
         try:
             parsed = response.json()
         except ValueError:
             parsed = None
-
         return HTTPResponse(
             status_code=response.status_code,
             headers=response.headers,

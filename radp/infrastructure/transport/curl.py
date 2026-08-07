@@ -1,5 +1,7 @@
+import asyncio
 import json
-import subprocess
+import logging
+import re
 from typing import Any, Mapping
 
 from pydantic_settings import BaseSettings
@@ -8,12 +10,16 @@ from .exceptions import CurlExecutionError
 from .response import HTTPResponse
 from .url import build_url
 
+logger = logging.getLogger(__name__)
+
 
 class CurlTransport:
+    TIMEOUT_SECONDS = 30
+
     def __init__(self, settings: BaseSettings) -> None:
         self.settings = settings
 
-    def get(
+    async def get(
         self,
         path: str,
         *,
@@ -26,10 +32,10 @@ class CurlTransport:
             path=path,
             params=params,
         )
-
-        cmd = [
+        command = [
             str(self.settings.curl_path),
             "-s",
+            "-S",
             "-i",
             "-w",
             "\nHTTP_STATUS:%{http_code}",
@@ -37,54 +43,67 @@ class CurlTransport:
             "GET",
             "--cert",
             self.settings.cert_thumbprint,
+            "-k",
             url,
         ]
 
-        cmd.append("-k")
-
         if headers:
             for key, value in headers.items():
-                cmd.extend(["-H", f"{key}: {value}"])
+                command.extend(["-H", f"{key}: {value}"])
 
-        masked = cmd.copy()
+        masked = command.copy()
         idx = masked.index("--cert")
         masked[idx + 1] = "***"
-        print("\nCURL COMMAND:")
-        print(" ".join(masked))
+        logger.info("CURL COMMAND: %s", " ".join(masked))
+        logger.info("Executing curl request %s", url)
 
         try:
-            result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=30, check=False
+            process = await asyncio.create_subprocess_exec(
+                *command,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
             )
-        except subprocess.TimeoutExpired as exc:
-            raise CurlExecutionError("curl request timeout") from exc
-
-        if result.returncode != 0:
+            try:
+                stdout, stderr = await asyncio.wait_for(
+                    process.communicate(),
+                    timeout=self.TIMEOUT_SECONDS,
+                )
+            except asyncio.TimeoutError as exc:
+                process.kill()
+                await process.wait()
+                raise CurlExecutionError(
+                    f"curl request timeout after "
+                    f"{self.TIMEOUT_SECONDS} seconds"
+                ) from exc
+        except OSError as exc:
+            raise CurlExecutionError(f"cannot execute curl: {exc}") from exc
+        stdout_text = stdout.decode("utf-8", errors="replace")
+        stderr_text = stderr.decode("utf-8", errors="replace")
+        if process.returncode != 0:
             raise CurlExecutionError(
-                f"curl exited with code {result.returncode}\n"
-                f"STDOUT:\n{result.stdout}\n"
-                f"STDERR:\n{result.stderr}"
+                f"curl exited with code {process.returncode}\n"
+                f"STDOUT:\n{stdout_text}\n"
+                f"STDERR:\n{stderr_text}"
             )
+        return self._parse_response(stdout_text)
 
-        raw = result.stdout
-
+    def _parse_response(self, raw: str) -> HTTPResponse:
+        response_raw, status_raw = self._split_status(raw)
         try:
-            response_raw, status_raw = raw.rsplit("HTTP_STATUS:", 1)
+            status_code = int(status_raw.strip())
         except ValueError as exc:
-            raise CurlExecutionError("Cannot parse curl response") from exc
-
-        status_code = int(status_raw.strip())
-
+            raise CurlExecutionError(
+                f"Invalid HTTP status code: {status_raw!r}"
+            ) from exc
         headers_block, body = self._split_response(response_raw)
-
         parsed_json = None
-
         if body:
             try:
                 parsed_json = json.loads(body)
             except json.JSONDecodeError:
-                pass
-
+                logger.info(
+                    "Response body is not JSON for HTTP status %s", status_code
+                )
         return HTTPResponse(
             status_code=status_code,
             headers=self._parse_headers(headers_block),
@@ -92,27 +111,41 @@ class CurlTransport:
             json_data=parsed_json,
         )
 
-    def _split_response(self, raw: str) -> tuple[str, str]:
-        assert raw.startswith(
-            "HTTP/1."
-        ), "Expected an HTTP response produced by curl -i"
+    @classmethod
+    def _split_response(cls, raw: str) -> tuple[str, str]:
+        matches = list(re.finditer(r"(?m)^HTTP/\d(?:\.\d)?\s+\d{3}\b", raw))
+        if not matches:
+            raise CurlExecutionError(
+                "Cannot find HTTP response headers in curl output"
+            )
+        response_start = matches[-1].start()
+        header_start = response_start
+        separator_match = re.search(r"\r?\n\r?\n", raw[response_start:])
+        if separator_match is None:
+            raise CurlExecutionError("Missing HTTP header/body separator")
+        separator_start = response_start + separator_match.start()
+        body_start = response_start + separator_match.end()
+        headers = raw[header_start:separator_start]
+        body = raw[body_start:]
+        return headers, body
 
-        separator = "\n\n"
-
-        assert separator in raw, "Missing HTTP header separator."
-
-        headers, body = raw.split(separator, 1)
-
-        return headers, body or ""
-
-    def _parse_headers(self, block: str):
-        result = {}
-
+    @staticmethod
+    def _parse_headers(block: str) -> dict[str, str]:
+        headers: dict[str, str] = {}
         for line in block.splitlines():
             if ":" not in line:
                 continue
-
             key, value = line.split(":", 1)
-            result[key.strip()] = value.strip()
+            headers[key.strip()] = value.strip()
+        return headers
 
-        return result
+    @staticmethod
+    def _split_status(raw: str) -> tuple[str, str]:
+        marker = "HTTP_STATUS:"
+        try:
+            response_raw, status_raw = raw.rsplit(marker, 1)
+        except ValueError as exc:
+            raise CurlExecutionError(
+                "Cannot find curl HTTP status marker"
+            ) from exc
+        return response_raw, status_raw

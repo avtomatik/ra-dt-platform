@@ -4,7 +4,6 @@ from pydantic import HttpUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from .enums import TransportMode
-from .paths import DATABASE_PATH
 
 
 class Settings(BaseSettings):
@@ -32,7 +31,6 @@ class Settings(BaseSettings):
     database_name: str = "radp"
     database_user: str = "postgres"
     database_password: str = "postgres"
-    sqlite_path: Path = DATABASE_PATH
 
     ###########################################################################
     # Logging
@@ -41,8 +39,6 @@ class Settings(BaseSettings):
 
     @property
     def database_url(self) -> str:
-        if self.database_driver == "sqlite":
-            return f"sqlite:///{self.sqlite_path}"
         return (
             f"postgresql+psycopg://"
             f"{self.database_user}:"

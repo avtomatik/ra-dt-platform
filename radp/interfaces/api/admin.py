@@ -7,6 +7,6 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 
 @router.post("/certificates/sync")
-def synchronize(runtime: Runtime = Depends(get_runtime)):
-    count = runtime.synchronization.synchronize()
+async def synchronize(runtime: Runtime = Depends(get_runtime)):
+    count = await runtime.synchronization.synchronize()
     return {"synchronized": count}

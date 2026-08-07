@@ -1,13 +1,11 @@
-import typer
+import argparse
+import logging
 
 from radp.bootstrap.initialize import initialize_runtime
 
+logger = logging.getLogger(__name__)
 
-def bootstrap(
-    reset: bool = typer.Option(
-        False,
-        help="Drop and recreate the database.",
-    )
-):
-    initialize_runtime(reset)
-    typer.echo("Initialization completed.")
+
+def bootstrap(args: argparse.Namespace) -> None:
+    initialize_runtime(reset=args.reset)
+    logger.info("Initialization completed.")

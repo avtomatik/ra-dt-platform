@@ -14,7 +14,7 @@ def config(runtime: Runtime = Depends(get_runtime)):
         "api_base_url": str(settings.api_base_url),
         "curl_path": str(settings.curl_path),
         "cert_thumbprint": settings.cert_thumbprint[:8] + "...",
-        "database": settings.database_url,
+        "database": settings.database_name,
     }
 
 

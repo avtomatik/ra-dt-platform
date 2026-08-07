@@ -7,17 +7,20 @@ router = APIRouter(prefix="/adapter", tags=["adapter"])
 
 
 @router.get("/certificates")
-def list_first_page(runtime: Runtime = Depends(get_runtime)):
-    return runtime.client.list_first_page().model_dump(by_alias=True)
+async def list_first_page(runtime: Runtime = Depends(get_runtime)):
+    page = await runtime.client.list_first_page()
+    return page.model_dump(by_alias=True)
 
 
 @router.get("/certificates/{certificate_id}")
-def get_certificate(
+async def get_certificate(
     certificate_id: str, runtime: Runtime = Depends(get_runtime)
 ):
-    return runtime.client.get_certificate(certificate_id)
+    certificate = await runtime.client.get_certificate(certificate_id)
+    return certificate
 
 
 @router.get("/certificates/search")
-def search_certificates(q: str, runtime: Runtime = Depends(get_runtime)):
-    return runtime.client.search_certificates(q)
+async def search_certificates(q: str, runtime: Runtime = Depends(get_runtime)):
+    certificates = await runtime.client.search_certificates(q)
+    return certificates

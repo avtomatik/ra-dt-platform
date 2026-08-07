@@ -426,7 +426,7 @@ application/
 ```env
 RADP_TRANSPORT=http
 
-RADP_API_BASE_URL=http://localhost:8000
+RADP_API_BASE_URL=http://emulator:8000/api/ra/
 RADP_API_PREFIX=/api/ra
 
 RADP_DB_DRIVER=sqlite
@@ -459,7 +459,6 @@ uv sync
 ```bash
 uvicorn radp.interfaces.api.main:app --reload
 ```
-<!-- uvicorn radp.interfaces.api.main:app --host 0.0.0.0 --port 9001 --reload -->
 
 Запуск синхронизации
 

@@ -1,59 +1,64 @@
 services:
-  radp:
-    container_name: platform
-
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
-
-    image: radp:latest
-
-    restart: unless-stopped
-
-    ports:
-      - "9000:9000"
-
-    env_file:
-      - .env
-
-    depends_on:
-      postgres:
-        condition: service_healthy
-
-    volumes:
-      - ./data:/app/data
-
-    networks:
-      - ra-network
-
   postgres:
     image: postgres:17
     container_name: radp-postgres
     restart: unless-stopped
-
     environment:
       POSTGRES_DB: ${RADP_DATABASE_NAME}
       POSTGRES_USER: ${RADP_DATABASE_USER}
       POSTGRES_PASSWORD: ${RADP_DATABASE_PASSWORD}
-
     volumes:
       - postgres-data:/var/lib/postgresql/data
-
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${RADP_DATABASE_USER} -d ${RADP_DATABASE_NAME}" ]
+      test:
+        [ "CMD-SHELL", "pg_isready -U ${RADP_DATABASE_USER} -d ${RADP_DATABASE_NAME}" ]
       interval: 10s
       timeout: 5s
       retries: 5
-
     ports:
       - "5432:5432"
-
     networks:
       - ra-network
 
+  db-init:
+    image: radp:latest
+    container_name: radp-db-init
+    env_file:
+      - .env
+    command:
+      - /app/.venv/bin/python
+      - -m
+      - radp.cli
+      - db
+      - create
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ra-network
+    restart: "no"
+
+  platform:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: radp:latest
+    container_name: radp-platform
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    env_file:
+      - .env
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    volumes:
+      - ./data:/app/data
+    networks:
+      - ra-network
 volumes:
   postgres-data:
 
 networks:
   ra-network:
-    external: true
+    name: ra-network

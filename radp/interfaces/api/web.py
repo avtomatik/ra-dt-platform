@@ -8,8 +8,8 @@ router = APIRouter(prefix="/web", tags=["web"])
 
 
 @router.get("", response_class=HTMLResponse)
-def home(runtime: Runtime = Depends(get_runtime)):
-    page = runtime.client.list_first_page()
+async def home(runtime: Runtime = Depends(get_runtime)):
+    page = await runtime.client.list_first_page()
     page_items = page.items
 
     html = f"""

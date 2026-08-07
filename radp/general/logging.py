@@ -4,7 +4,11 @@ import sys
 DEFAULT_FORMAT = "%(asctime)s %(levelname)s %(name)s: %(message)s"
 
 
-def setup_logging(level: int = logging.INFO) -> None:
+def setup_logging(level: str = "INFO") -> None:
+    numeric_level = getattr(logging, level.upper(), logging.INFO)
     logging.basicConfig(
-        level=level, format=DEFAULT_FORMAT, stream=sys.stdout, force=True
+        level=numeric_level,
+        format=DEFAULT_FORMAT,
+        stream=sys.stdout,
+        force=True,
     )

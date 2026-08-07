@@ -1,6 +1,7 @@
 FROM python:3.12-slim
 
-ENV PYTHONUNBUFFERED=1
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
 
 WORKDIR /app
 
@@ -10,11 +11,10 @@ RUN apt-get update && \
         ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-COPY pyproject.toml uv.lock README.md ./
+COPY pyproject.toml uv.lock ./
 
-RUN pip install --no-cache-dir uv
-
-RUN uv sync --frozen --no-dev
+RUN pip install --no-cache-dir uv \
+    && uv sync --frozen --no-dev
 
 COPY radp ./radp
 
@@ -22,7 +22,7 @@ COPY html ./html
 
 COPY data ./data
 
-RUN mkdir -p /app/data
+RUN mkdir -p /app/data/exports
 
 EXPOSE 9000
 

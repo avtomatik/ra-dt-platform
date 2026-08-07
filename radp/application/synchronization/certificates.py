@@ -19,26 +19,21 @@ class CertificateSynchronizationService:
         self.snapshots = snapshots
         self.factory = factory
 
-    def synchronize(self) -> int:
+    async def synchronize(self) -> int:
         synchronized = 0
         skipped = 0
 
-        for summary in self.client.iter_certificates():
+        async for summary in self.client.iter_certificates():
             latest = self.snapshots.get_latest(summary.id)
             if latest:
-
                 logger.debug("Certificate %s already exists", summary.id)
-
                 skipped += 1
                 continue
-
             logger.info("Fetching certificate %s", summary.id)
-
-            detail_dto = self.client.get_certificate(summary.id)
+            detail_dto = await self.client.get_certificate(summary.id)
             snapshot = self.factory.create(detail_dto)
             self.snapshots.save(snapshot)
             synchronized += 1
-
         logger.info(
             "Synchronization finished. Created=%s skipped=%s",
             synchronized,

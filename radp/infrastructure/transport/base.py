@@ -4,7 +4,7 @@ from .response import HTTPResponse
 
 
 class Transport(Protocol):
-    def get(
+    async def get(
         self,
         path: str,
         *,

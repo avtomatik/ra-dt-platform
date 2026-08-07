@@ -1,11 +1,12 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: explorer
+  name: platform
 spec:
   selector:
-    app: explorer
+    app: platform
   ports:
     - port: 9000
       targetPort: 9000
+      nodePort: 30900
   type: NodePort
