@@ -17,7 +17,7 @@ services:
       retries: 5
       start_period: 20s
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     networks:
       - ra-network
 
@@ -29,7 +29,7 @@ services:
     command:
       - /app/.venv/bin/python
       - -m
-      - radp.cli
+      - radp
       - db
       - create
     depends_on:
@@ -58,9 +58,11 @@ services:
     networks:
       - ra-network
     labels:
+      ofelia.enabled: "true"
       ofelia.job-exec.sync.schedule: "0 0 2 * * *"
       ofelia.job-exec.sync.command: >
-        /app/.venv/bin/python -m radp.cli sync run
+        /app/.venv/bin/python -m radp sync run
+      ofelia.job-exec.sync.no-overlap: "true"
 
   scheduler:
     image: mcuadros/ofelia:latest
@@ -69,6 +71,9 @@ services:
     command: ["daemon", "--docker"]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      platform:
+        condition: service_started
     networks:
       - ra-network
 
