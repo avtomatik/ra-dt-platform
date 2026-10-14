@@ -11,7 +11,6 @@ router = APIRouter(prefix="/web", tags=["web"])
 async def home(runtime: Runtime = Depends(get_runtime)):
     page = await runtime.client.list_first_page()
     page_items = page.items
-
     html = f"""
     <html>
         <head><title>RADP Platform</title></head>
@@ -19,14 +18,11 @@ async def home(runtime: Runtime = Depends(get_runtime)):
             <h1>Перечень первых {len(page_items)} сертификатов</h1>
             <ul>
     """
-
     for item in page_items:
         html += f"<li>{item.id} ({item.serial_number}): {item.name_attributes.get('commonName')}</li>"
-
     html += """
             </ul>
         </body>
     </html>
     """
-
     return html

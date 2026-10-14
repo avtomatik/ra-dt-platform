@@ -1,33 +1,36 @@
-from datetime import datetime, timezone
-from uuid import uuid4
+from datetime import datetime
+from uuid import UUID
 
-from sqlalchemy import String, Text
+from sqlalchemy import DateTime, String, func
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
-
-from radp.domain.models.certificate import CertificateSnapshot
 
 from .base import Base
 
 
-class CertificateSnapshotRecord(Base):
-    __tablename__ = "certificate_snapshots"
+class CertificateRecord(Base):
+    __tablename__ = "certificates"
 
-    id: Mapped[str] = mapped_column(
-        String(64), primary_key=True, default=lambda: str(uuid4())
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    revoked_when: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
     )
-    certificate_id: Mapped[str] = mapped_column(
-        String(64), index=True, nullable=False
-    )
-    payload: Mapped[str] = mapped_column(Text, nullable=False)
+    revocation_reason: Mapped[str | None] = mapped_column(String(128))
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
     persisted_at: Mapped[datetime] = mapped_column(
-        default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.current_timestamp(),
     )
 
     @classmethod
-    def from_snapshot(
-        cls, snapshot: CertificateSnapshot
-    ) -> "CertificateSnapshotRecord":
+    def from_certificate(cls, certificate) -> "CertificateRecord":
         return cls(
-            certificate_id=str(snapshot.certificate_id),
-            payload=snapshot.model_dump_json(),
+            id=certificate.certificate_id,
+            status=certificate.lifecycle.status,
+            revoked_when=certificate.lifecycle.revoked_when,
+            revocation_reason=certificate.lifecycle.revocation_reason,
+            payload=certificate.immutable_payload(),
         )

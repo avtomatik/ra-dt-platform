@@ -46,17 +46,14 @@ class CurlTransport:
             "-k",
             url,
         ]
-
         if headers:
             for key, value in headers.items():
                 command.extend(["-H", f"{key}: {value}"])
-
         masked = command.copy()
         idx = masked.index("--cert")
         masked[idx + 1] = self.settings.transport.cert_thumbprint
         logger.info("CURL COMMAND: %s", " ".join(masked))
         logger.info("Executing curl request %s", url)
-
         try:
             process = await asyncio.create_subprocess_exec(
                 *command,
@@ -65,8 +62,7 @@ class CurlTransport:
             )
             try:
                 stdout, stderr = await asyncio.wait_for(
-                    process.communicate(),
-                    timeout=self.TIMEOUT_SECONDS,
+                    process.communicate(), timeout=self.TIMEOUT_SECONDS
                 )
             except asyncio.TimeoutError as exc:
                 process.kill()

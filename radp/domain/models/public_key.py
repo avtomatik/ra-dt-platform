@@ -1,7 +1,7 @@
-from .base import SnapshotModel
+from .base import DomainModel
 
 
-class PublicKeySnapshot(SnapshotModel):
+class PublicKey(DomainModel):
     algorithm_oid: str
     algorithm_name: str | None
     key_size: int | None

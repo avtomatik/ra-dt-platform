@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+from radp.application.ports.oid_repository import OIDRepositoryPort
 from radp.config.paths import OID_REGISTRY_FIXTURE_PATH
 from radp.domain.oid.models import OIDDefinition
 
@@ -17,7 +18,11 @@ class OIDRegistryLoader:
 
 
 class OIDRegistryInitializer:
-    def __init__(self, repository, loader: OIDRegistryLoader | None = None):
+    def __init__(
+        self,
+        repository: OIDRepositoryPort,
+        loader: OIDRegistryLoader | None = None,
+    ) -> None:
         self.repository = repository
         self.loader = loader or OIDRegistryLoader()
 

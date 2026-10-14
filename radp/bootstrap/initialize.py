@@ -1,9 +1,10 @@
-from .database import reset_database
-from .runtime import get_runtime
+from radp.bootstrap.runtime import get_runtime
 
 
-def initialize_runtime(reset: bool):
-    runtime = get_runtime()
+def initialize_runtime(reset: bool) -> int:
+    container = get_runtime()
     if reset:
-        reset_database(runtime.settings.database)
-    runtime.initialize()
+        container.database.reset()
+    else:
+        container.database.create()
+    return container.bootstrap.initialize()

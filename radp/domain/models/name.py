@@ -1,7 +1,7 @@
 from .attribute import DistinguishedNameAttribute
-from .base import SnapshotModel
+from .base import DomainModel
 
 
-class DistinguishedName(SnapshotModel):
+class DistinguishedName(DomainModel):
     rfc4514: str
     attributes: list[DistinguishedNameAttribute]

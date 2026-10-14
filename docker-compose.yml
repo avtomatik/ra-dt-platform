@@ -11,10 +11,11 @@ services:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
       test:
-        [ "CMD-SHELL", "pg_isready -U ${RADP_DATABASE__USER} -d ${RADP_DATABASE__NAME}" ]
-      interval: 10s
-      timeout: 5s
+        ["CMD-SHELL", "pg_isready -U ${RADP_DATABASE__USER} -d ${RADP_DATABASE__NAME}"]
+      interval: 30m
+      timeout: 10s
       retries: 5
+      start_period: 20s
     ports:
       - "5432:5432"
     networks:
@@ -56,6 +57,21 @@ services:
       - ./data:/app/data
     networks:
       - ra-network
+    labels:
+      ofelia.job-exec.sync.schedule: "0 0 2 * * *"
+      ofelia.job-exec.sync.command: >
+        /app/.venv/bin/python -m radp.cli sync run
+
+  scheduler:
+    image: mcuadros/ofelia:latest
+    container_name: radp-scheduler
+    restart: unless-stopped
+    command: ["daemon", "--docker"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - ra-network
+
 volumes:
   postgres-data:
 

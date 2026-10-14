@@ -124,7 +124,7 @@ RA REST API
 RAClient
         │
         ▼
-CertificateSynchronizationService
+CertificateSynchronizer
         │
         ▼
 Проверка SnapshotRepository
@@ -176,7 +176,7 @@ Snapshot содержит:
 За обновление локальной базы отвечает
 
 ```
-CertificateSynchronizationService
+CertificateSynchronizer
 ```
 
 Алгоритм работы:
