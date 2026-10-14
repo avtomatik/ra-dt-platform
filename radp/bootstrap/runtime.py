@@ -1,8 +1,8 @@
 from functools import lru_cache
 
-from radp.runtime import Runtime
+from radp.bootstrap.container import Container
 
 
-@lru_cache
-def get_runtime() -> Runtime:
-    return Runtime()
+@lru_cache(maxsize=1)
+def get_runtime() -> Container:
+    return Container()

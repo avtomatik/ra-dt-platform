@@ -2,12 +2,11 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from .base import SnapshotModel
+from .base import DomainModel
 
 
-class CertificateMetadata(SnapshotModel):
+class CertificateMetadata(DomainModel):
     id: UUID
-    status: str
     serial_number: str
     thumbprint: str
     created_when: datetime
@@ -17,6 +16,4 @@ class CertificateMetadata(SnapshotModel):
     cert_request_id: str | None
     user_id: UUID | None
     folder: str | None
-    revoked_when: datetime | None
-    revocation_reason: str | None
     raw_name_attributes: dict[str, Any]

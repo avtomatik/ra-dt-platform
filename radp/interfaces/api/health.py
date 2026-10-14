@@ -9,11 +9,13 @@ router = APIRouter(prefix="/health", tags=["health"])
 @router.get("")
 def health(runtime: Runtime = Depends(get_runtime)):
     settings = runtime.settings
+    tables = runtime.database.list_tables()
     return {
         "status": "ok",
-        "transport": settings.transport,
-        "api_base_url": str(settings.api_base_url),
-        "curl_path": str(settings.curl_path),
-        "cert_thumbprint_set": bool(settings.cert_thumbprint),
-        "database": settings.database_driver,
+        "transport_mode": settings.transport.mode,
+        "api_base_url": str(settings.remote_ra.base_url),
+        "curl_path": str(settings.transport.curl_path),
+        "cert_thumbprint_set": bool(settings.transport.cert_thumbprint),
+        "database": settings.database.driver,
+        "database_tables": tables,
     }

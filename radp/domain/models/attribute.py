@@ -1,7 +1,7 @@
-from .base import SnapshotModel
+from .base import DomainModel
 
 
-class DistinguishedNameAttribute(SnapshotModel):
+class DistinguishedNameAttribute(DomainModel):
     oid: str
     short_name: str | None
     name: str | None

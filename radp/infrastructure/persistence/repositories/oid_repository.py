@@ -1,67 +1,109 @@
-from datetime import datetime, timezone
-
-from sqlalchemy import select
+from sqlalchemy import func, select
+from sqlalchemy.engine import Engine
 
 from radp.domain.oid.models import OIDDefinition
 from radp.infrastructure.persistence.models.oid import OIDRecord
 
 
 class OIDRepository:
-    def __init__(self, session_factory):
-        self.session_factory = session_factory
+    def __init__(self, engine: Engine) -> None:
+        self._engine = engine
 
     def get(self, oid: str) -> OIDDefinition | None:
-        with self.session_factory() as session:
-            record = session.scalar(
-                select(OIDRecord).where(OIDRecord.oid == oid)
+        with self._engine.connect() as connection:
+            record = (
+                connection.execute(
+                    select(
+                        OIDRecord.oid,
+                        OIDRecord.name,
+                        OIDRecord.short_name,
+                        OIDRecord.category,
+                        OIDRecord.description,
+                        OIDRecord.enabled,
+                    ).where(OIDRecord.oid == oid)
+                )
+                .mappings()
+                .one_or_none()
             )
-            return self._to_domain(record) if record else None
+        return self._to_domain(record) if record else None
 
     def exists(self, oid: str) -> bool:
-        with self.session_factory() as session:
+        with self._engine.connect() as connection:
             return (
-                session.scalar(
-                    select(OIDRecord.oid).where(OIDRecord.oid == oid)
-                )
+                connection.execute(
+                    select(OIDRecord.oid).where(OIDRecord.oid == oid).limit(1)
+                ).first()
                 is not None
             )
 
     def all(self) -> list[OIDDefinition]:
-        with self.session_factory() as session:
-            records = session.scalars(
-                select(OIDRecord).order_by(OIDRecord.oid)
+        with self._engine.connect() as connection:
+            rows = connection.execute(
+                select(
+                    OIDRecord.oid,
+                    OIDRecord.name,
+                    OIDRecord.short_name,
+                    OIDRecord.category,
+                    OIDRecord.description,
+                    OIDRecord.enabled,
+                ).order_by(OIDRecord.oid.asc())
+            ).all()
+        return [self._to_domain(row) for row in rows]
+
+    def count(self) -> int:
+        from sqlalchemy import func
+
+        with self._engine.connect() as connection:
+            return int(
+                connection.execute(
+                    select(func.count()).select_from(OIDRecord)
+                ).scalar_one()
             )
-            return [self._to_domain(record) for record in records]
 
     def save(self, definition: OIDDefinition) -> None:
-        now = datetime.now(timezone.utc)
-        with self.session_factory() as session:
-            record = session.get(OIDRecord, definition.oid)
-            if record is None:
-                record = OIDRecord(oid=definition.oid, created_at=now)
-                session.add(record)
-            record.name = definition.name
-            record.short_name = definition.short_name
-            record.category = definition.category
-            record.description = definition.description
-            record.enabled = definition.enabled
-            record.updated_at = now
-            session.commit()
+        values = {
+            "oid": definition.oid,
+            "name": definition.name,
+            "short_name": definition.short_name,
+            "category": definition.category,
+            "description": definition.description,
+            "enabled": definition.enabled,
+        }
+        with self._engine.begin() as connection:
+            existing = connection.execute(
+                select(OIDRecord.oid)
+                .where(OIDRecord.oid == definition.oid)
+                .limit(1)
+            ).first()
+            if existing is None:
+                connection.execute(
+                    OIDRecord.__table__.insert().values(
+                        **values,
+                        created_at=func.current_timestamp(),
+                        updated_at=func.current_timestamp(),
+                    )
+                )
+            else:
+                connection.execute(
+                    OIDRecord.__table__.update()
+                    .where(OIDRecord.oid == definition.oid)
+                    .values(**values, updated_at=func.current_timestamp())
+                )
 
     def delete(self, oid: str) -> None:
-        with self.session_factory() as session:
-            record = session.get(OIDRecord, oid)
-            if record:
-                session.delete(record)
-                session.commit()
+        with self._engine.begin() as connection:
+            connection.execute(
+                OIDRecord.__table__.delete().where(OIDRecord.oid == oid)
+            )
 
     @staticmethod
-    def _to_domain(record: OIDRecord) -> OIDDefinition:
+    def _to_domain(row) -> OIDDefinition:
+        mapping = row._mapping if hasattr(row, "_mapping") else row
         return OIDDefinition(
-            oid=record.oid,
-            name=record.name,
-            short_name=record.short_name,
-            category=record.category,
-            description=record.description,
-            enabled=record.enabled,
+            oid=mapping["oid"],
+            name=mapping["name"],
+            short_name=mapping["short_name"],
+            category=mapping["category"],
+            description=mapping["description"],
+            enabled=mapping["enabled"],
         )

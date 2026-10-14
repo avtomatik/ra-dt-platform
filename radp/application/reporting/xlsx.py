@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from pathlib import Path
 
-from openpyxl import Workbook
+import xlsxwriter
 from pydantic import BaseModel
 
 
@@ -17,23 +17,21 @@ class XLSXExporter:
         return value
 
     def export(
-        self,
-        rows: list[BaseModel],
-        output: Path,
-        *,
-        sheet_name: str = "Sheet1",
+        self, rows: list[BaseModel], output: Path, *, sheet_name="Sheet1"
     ):
-        wb = Workbook()
-        ws = wb.active
-        ws.title = sheet_name
+        workbook = xlsxwriter.Workbook(output)
+        worksheet = workbook.add_worksheet(sheet_name)
         if not rows:
-            ws.append(["empty"])
-            wb.save(output)
+            worksheet.write(0, 0, "empty")
+            workbook.close()
             return
         headers = list(rows[0].model_dump().keys())
-        ws.append(headers)
-        for row in rows:
-            ws.append(
-                [self._serialize(value) for value in row.model_dump().values()]
-            )
-        wb.save(output)
+        for column, header in enumerate(headers):
+            worksheet.write(0, column, header)
+        for row_index, row in enumerate(rows, start=1):
+            values = row.model_dump()
+            for column, header in enumerate(headers):
+                worksheet.write(
+                    row_index, column, self._serialize(values[header])
+                )
+        workbook.close()

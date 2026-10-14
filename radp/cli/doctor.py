@@ -1,28 +1,32 @@
+import argparse
+import asyncio
 import logging
 
+from radp.application.doctor.service import CheckResult
+from radp.bootstrap.runtime import get_runtime
 from radp.config.settings import Settings
 
 logger = logging.getLogger(__name__)
 
 
-def doctor(_args) -> None:
-    logger.info("Configuration")
-    Settings()
-    logger.info("  ✓ Settings loaded")
-    logger.info("Database")
-    logger.info("  ✓ PostgreSQL")
-    logger.info("  ✓ Connected")
-    logger.info("  ✓ Schema version: 1")
-    logger.info("OID registry")
-    logger.info("  ✓ 823 definitions")
-    logger.info("Snapshots")
-    logger.info("  ✓ 1743 certificates")
-    logger.info("Transport")
-    logger.info("  ✓ CurlTransport")
-    logger.info("RA API")
-    logger.info("  ✓ Reachable")
-    logger.info("  ✓ GET /certificates")
-    logger.info("Synchronization")
-    logger.info("  ✓ Ready")
-    logger.info("Runtime")
-    logger.info("  ✓ Healthy")
+def doctor(_args: argparse.Namespace) -> int:
+    try:
+        Settings()
+    except Exception as exc:
+        logger.error("configuration: FAIL - %s", exc)
+        return 1
+    logger.info("configuration: OK - settings loaded")
+    try:
+        runtime = get_runtime()
+        results = asyncio.run(runtime.doctor.run())
+    except Exception as exc:
+        logger.error("runtime: FAIL - %s", exc)
+        return 1
+    for result in results:
+        _log_result(result)
+    return 0 if all(result.ok for result in results) else 1
+
+
+def _log_result(result: CheckResult) -> None:
+    state = "OK" if result.ok else "FAIL"
+    logger.info("%s: %s - %s", result.name, state, result.message)

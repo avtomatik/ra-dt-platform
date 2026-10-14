@@ -10,11 +10,10 @@ router = APIRouter(prefix="/debug", tags=["debug"])
 def config(runtime: Runtime = Depends(get_runtime)):
     settings = runtime.settings
     return {
-        "transport": settings.transport,
-        "api_base_url": str(settings.api_base_url),
-        "curl_path": str(settings.curl_path),
-        "cert_thumbprint": settings.cert_thumbprint[:8] + "...",
-        "database": settings.database_name,
+        "transport_mode": settings.transport.mode,
+        "api_base_url": str(settings.remote_ra.base_url),
+        "curl_path": str(settings.transport.curl_path),
+        "database": settings.database.name,
     }
 
 

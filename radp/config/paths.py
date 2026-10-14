@@ -5,7 +5,4 @@ DATA_DIR = BASE_DIR / "data"
 TEMPLATE_DIR = BASE_DIR / "html"
 EXPORTS_DIR = DATA_DIR / "exports"
 SEED_DIR = DATA_DIR / "seed"
-
 OID_REGISTRY_FIXTURE_PATH = SEED_DIR / "oid_registry.json"
-
-EXPORTS_DIR.mkdir(parents=True, exist_ok=True)

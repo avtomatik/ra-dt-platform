@@ -4,17 +4,18 @@ services:
     container_name: radp-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${RADP_DATABASE_NAME}
-      POSTGRES_USER: ${RADP_DATABASE_USER}
-      POSTGRES_PASSWORD: ${RADP_DATABASE_PASSWORD}
+      POSTGRES_DB: ${RADP_DATABASE__NAME}
+      POSTGRES_USER: ${RADP_DATABASE__USER}
+      POSTGRES_PASSWORD: ${RADP_DATABASE__PASSWORD}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
       test:
-        [ "CMD-SHELL", "pg_isready -U ${RADP_DATABASE_USER} -d ${RADP_DATABASE_NAME}" ]
-      interval: 10s
-      timeout: 5s
+        ["CMD-SHELL", "pg_isready -U ${RADP_DATABASE__USER} -d ${RADP_DATABASE__NAME}"]
+      interval: 30m
+      timeout: 10s
       retries: 5
+      start_period: 20s
     ports:
       - "5432:5432"
     networks:
@@ -28,7 +29,7 @@ services:
     command:
       - /app/.venv/bin/python
       - -m
-      - radp.cli
+      - radp
       - db
       - create
     depends_on:
@@ -56,6 +57,26 @@ services:
       - ./data:/app/data
     networks:
       - ra-network
+    labels:
+      ofelia.enabled: "true"
+      ofelia.job-exec.sync.schedule: "0 0 2 * * *"
+      ofelia.job-exec.sync.command: >
+        /app/.venv/bin/python -m radp sync run
+      ofelia.job-exec.sync.no-overlap: "true"
+
+  scheduler:
+    image: mcuadros/ofelia:latest
+    container_name: radp-scheduler
+    restart: unless-stopped
+    command: ["daemon", "--docker"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      platform:
+        condition: service_started
+    networks:
+      - ra-network
+
 volumes:
   postgres-data:
 
