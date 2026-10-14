@@ -1,12 +1,12 @@
 from datetime import datetime
 
-from .base import SnapshotModel
-from .extension import ExtensionSnapshot
+from .base import DomainModel
+from .extension import Extension
 from .name import DistinguishedName
-from .public_key import PublicKeySnapshot
+from .public_key import PublicKey
 
 
-class X509Snapshot(SnapshotModel):
+class X509Certificate(DomainModel):
     version: int
     serial_number: int
     serial_number_hex: str
@@ -16,8 +16,8 @@ class X509Snapshot(SnapshotModel):
     not_valid_after: datetime
     signature_algorithm_oid: str
     signature_algorithm_name: str | None
-    public_key: PublicKeySnapshot
-    extensions: list[ExtensionSnapshot]
+    public_key: PublicKey
+    extensions: list[Extension]
     signature_hex: str
     tbs_certificate_bytes_hex: str
     der_hex: str

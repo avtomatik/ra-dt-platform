@@ -1,7 +1,8 @@
 from typing import Any, Mapping
 
 import httpx2
-from pydantic_settings import BaseSettings
+
+from radp.config.settings import Settings
 
 from .response import HTTPResponse
 from .url import build_url
@@ -10,7 +11,7 @@ from .url import build_url
 class HTTPTransport:
     TIMEOUT_SECONDS = 30
 
-    def __init__(self, settings: BaseSettings) -> None:
+    def __init__(self, settings: Settings) -> None:
         self.settings = settings
 
     async def get(
@@ -21,8 +22,8 @@ class HTTPTransport:
         headers: Mapping[str, Any] | None = None,
     ) -> HTTPResponse:
         url = build_url(
-            api_base_url=str(self.settings.api_base_url),
-            api_root=self.settings.api_root,
+            api_base_url=str(self.settings.remote_ra.base_url),
+            api_root=self.settings.remote_ra.root,
             path=path,
             params=params,
         )

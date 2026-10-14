@@ -1,4 +1,4 @@
-from radp.domain.models.certificate import CertificateSnapshot
+from radp.domain.models.certificate import Certificate
 from radp.domain.oid import constants
 
 from .models import CertificateInventoryRow
@@ -6,9 +6,9 @@ from .models import CertificateInventoryRow
 
 class CertificateProjection:
     @staticmethod
-    def inventory(snapshot: CertificateSnapshot) -> CertificateInventoryRow:
-        subject = snapshot.subject_by_oid
-        extensions = snapshot.extension_by_oid
+    def inventory(certificate: Certificate) -> CertificateInventoryRow:
+        subject = certificate.subject_by_oid
+        extensions = certificate.extension_by_oid
         return CertificateInventoryRow(
             ogrn=subject.get(constants.OGRN),
             organization_name=subject.get(constants.O),
@@ -18,13 +18,13 @@ class CertificateProjection:
             organizational_unit_name=subject.get(constants.OU),
             title=subject.get(constants.T),
             common_name=subject.get(constants.CN),
-            serial_number=snapshot.metadata.serial_number,
+            serial_number=certificate.metadata.serial_number,
             snils=subject.get(constants.SNILS),
-            status=snapshot.metadata.status,
+            status=certificate.lifecycle.status,
             certificate_template=extensions.get(
                 constants.CERTIFICATE_TEMPLATE
             ),
-            revoked_when=snapshot.metadata.revoked_when,
-            not_before=snapshot.metadata.not_before,
-            not_after=snapshot.metadata.not_after,
+            revoked_when=certificate.lifecycle.revoked_when,
+            not_before=certificate.metadata.not_before,
+            not_after=certificate.metadata.not_after,
         )

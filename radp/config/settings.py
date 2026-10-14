@@ -1,49 +1,51 @@
 from pathlib import Path
+from urllib.parse import quote
 
-from pydantic import HttpUrl
+from pydantic import BaseModel, HttpUrl, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from .enums import TransportMode
 
 
-class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="RADP_", env_file=".env")
-
-    ###########################################################################
-    # Transport
-    ###########################################################################
+class TransportSettings(BaseModel):
+    mode: TransportMode
     curl_path: Path
-    cert_thumbprint: str
-    transport: TransportMode
+    cert_thumbprint: SecretStr
 
-    ###########################################################################
-    # Remote RA
-    ###########################################################################
-    api_base_url: HttpUrl
-    api_root: str = "/api/ra"
 
-    ###########################################################################
-    # Database
-    ###########################################################################
-    database_driver: str = "postgres"
-    database_host: str = "localhost"
-    database_port: int = 5432
-    database_name: str = "radp"
-    database_user: str = "postgres"
-    database_password: str = "postgres"
+class RemoteRaSettings(BaseModel):
+    base_url: HttpUrl
+    root: str = "/api/ra"
 
-    ###########################################################################
-    # Logging
-    ###########################################################################
-    log_level: str = "INFO"
+
+class DatabaseSettings(BaseModel):
+    driver: str = "postgresql"
+    host: str
+    port: int = 5432
+    name: str
+    user: str
+    password: SecretStr
+    connect_timeout: int = 5
 
     @property
-    def database_url(self) -> str:
-        return (
-            f"postgresql+psycopg://"
-            f"{self.database_user}:"
-            f"{self.database_password}@"
-            f"{self.database_host}:"
-            f"{self.database_port}/"
-            f"{self.database_name}"
-        )
+    def url(self) -> str:
+        name = quote(self.name, safe="")
+        user = quote(self.user, safe="")
+        password = quote(self.password.get_secret_value(), safe="")
+        return f"postgresql+psycopg://{user}:{password}@{self.host}:{self.port}/{name}"
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        extra="ignore",
+        env_prefix="RADP_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        env_nested_delimiter="__",
+        case_sensitive=False,
+    )
+
+    transport: TransportSettings
+    remote_ra: RemoteRaSettings
+    database: DatabaseSettings
+    log_level: str = "INFO"

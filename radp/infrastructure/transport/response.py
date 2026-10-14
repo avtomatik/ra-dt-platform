@@ -21,5 +21,4 @@ class HTTPResponse:
         for key, value in self.headers.items():
             if key.lower() == "content-type":
                 return value
-
         return None
