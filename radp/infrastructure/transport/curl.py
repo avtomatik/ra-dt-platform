@@ -51,7 +51,7 @@ class CurlTransport:
                 command.extend(["-H", f"{key}: {value}"])
         masked = command.copy()
         idx = masked.index("--cert")
-        masked[idx + 1] = self.settings.transport.cert_thumbprint
+        masked[idx + 1] = "**********"
         logger.info("CURL COMMAND: %s", " ".join(masked))
         logger.info("Executing curl request %s", url)
         try:
