@@ -26,6 +26,13 @@ class CertificateFactory:
         self.oid_repository = oid_repository
         self.decoder = decoder or CertificateDecoder()
 
+    def _resolve_oid(self, oid: str):
+        """Resolve an OID and register it if it has not been seen before."""
+        definition = self.oid_repository.get(oid)
+        if definition is not None:
+            return definition
+        return self.oid_repository.ensure(oid)
+
     def _build_metadata(self, dto: CertificateDTO) -> CertificateMetadata:
         return CertificateMetadata(
             id=dto.id,
@@ -67,7 +74,7 @@ class CertificateFactory:
 
     def _build_public_key(self, cert: x509.Certificate) -> PublicKey:
         algorithm_oid = cert.public_key_algorithm_oid.dotted_string
-        registry = self.oid_repository.get(algorithm_oid)
+        registry = self._resolve_oid(algorithm_oid)
         algorithm_name = registry.name if registry else None
         try:
             public_key = cert.public_key()
@@ -99,7 +106,7 @@ class CertificateFactory:
     def _build_name(self, name: x509.Name) -> DistinguishedName:
         attributes: list[DistinguishedNameAttribute] = []
         for attribute in name:
-            registry = self.oid_repository.get(attribute.oid.dotted_string)
+            registry = self._resolve_oid(attribute.oid.dotted_string)
             attributes.append(
                 DistinguishedNameAttribute(
                     oid=attribute.oid.dotted_string,
@@ -119,7 +126,7 @@ class CertificateFactory:
         except (ValueError, UnsupportedAlgorithm):
             return result
         for extension in extensions:
-            registry = self.oid_repository.get(extension.oid.dotted_string)
+            registry = self._resolve_oid(extension.oid.dotted_string)
             result.append(
                 Extension(
                     oid=extension.oid.dotted_string,

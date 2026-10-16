@@ -30,8 +30,7 @@ services:
       - /app/.venv/bin/python
       - -m
       - radp
-      - db
-      - create
+      - bootstrap
     depends_on:
       postgres:
         condition: service_healthy

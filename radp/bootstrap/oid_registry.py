@@ -8,8 +8,10 @@ from radp.domain.oid.models import OIDDefinition
 
 class OIDRegistryLoader:
     def load(self, fixture_path: Path) -> list[OIDDefinition]:
-        if not fixture_path.exists():
-            return []
+        if not fixture_path.is_file():
+            raise FileNotFoundError(
+                f"OID registry fixture does not exist: {fixture_path}"
+            )
         with fixture_path.open("r", encoding="utf-8") as handle:
             payload = json.load(handle)
         if not isinstance(payload, list):
@@ -29,10 +31,8 @@ class OIDRegistryInitializer:
     def initialize(self, fixture_path: Path | None = None) -> int:
         path = fixture_path or OID_REGISTRY_FIXTURE_PATH
         definitions = self.loader.load(path)
-        inserted = 0
+        changed = 0
         for definition in definitions:
-            if self.repository.exists(definition.oid):
-                continue
-            self.repository.save(definition)
-            inserted += 1
-        return inserted
+            if self.repository.upsert_missing(definition):
+                changed += 1
+        return changed

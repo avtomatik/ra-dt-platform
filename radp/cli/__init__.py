@@ -5,7 +5,7 @@ from .database import (create, drop, inspect_table, latest_certificates,
                        oid_registry, reset, stats, tables)
 from .doctor import doctor
 from .export import excel
-from .oid import export_registry
+from .oid import export_registry, sync_registry
 from .serve import serve
 from .synchronize import synchronize
 
@@ -54,7 +54,7 @@ def build_parser() -> argparse.ArgumentParser:
     bootstrap_parser.add_argument(
         "--reset",
         action="store_true",
-        help="Drop and recreate the database before initialization.",
+        help="Destructively drop and recreate the database before initialization.",
     )
     bootstrap_parser.set_defaults(handler=bootstrap)
 
@@ -117,7 +117,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     oid_parser = commands.add_parser("oid", help="OID registry operations.")
     oid_commands = oid_parser.add_subparsers(dest="oid_command", required=True)
-
+    oid_sync = oid_commands.add_parser(
+        "sync",
+        help="Merge seed OID definitions into the database without resetting it.",
+    )
+    oid_sync.set_defaults(handler=sync_registry)
     oid_export = oid_commands.add_parser(
         "export", help="Export enriched DB OID registry to the seed JSON."
     )
