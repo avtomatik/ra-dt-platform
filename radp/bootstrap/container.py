@@ -50,7 +50,9 @@ class Container:
 
     @cached_property
     def client(self) -> RAClient:
-        return RAClient(self.transport)
+        return RAClient(
+            self.transport, self.settings.remote_ra.certificate_folder
+        )
 
     @cached_property
     def certificate_factory(self) -> CertificateFactory:

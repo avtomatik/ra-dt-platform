@@ -1,10 +1,13 @@
 import argparse
 
+from radp.config.logging import setup_logging
+from radp.config.settings import Settings
+
 from .bootstrap import bootstrap
 from .database import (create, drop, inspect_table, latest_certificates,
                        oid_registry, reset, stats, tables)
 from .doctor import doctor
-from .export import excel
+from .export import excel, flush
 from .oid import export_registry, sync_registry
 from .serve import serve
 from .synchronize import synchronize
@@ -115,6 +118,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     excel_parser.set_defaults(handler=excel)
 
+    flush_parser = export_commands.add_parser(
+        "flush",
+        help="Remove generated XLSX exports from the exports directory.",
+    )
+    flush_parser.set_defaults(handler=flush)
+
     oid_parser = commands.add_parser("oid", help="OID registry operations.")
     oid_commands = oid_parser.add_subparsers(dest="oid_command", required=True)
     oid_sync = oid_commands.add_parser(
@@ -156,6 +165,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> None:
+    settings = Settings()
+    setup_logging(settings.log_level)
     parser = build_parser()
     args = parser.parse_args()
     result = args.handler(args)

@@ -13,9 +13,11 @@ class RAClient:
     def __init__(
         self,
         transport: Transport,
+        certificate_folder: str,
         search_parameter: SearchParameter = DEFAULT_SEARCH_PARAMETER,
     ):
         self.transport = transport
+        self.certificate_folder = certificate_folder
         self.search_parameter = search_parameter
 
     async def _fetch_certificate_page(self, href: str) -> Page[CertificateDTO]:
@@ -23,12 +25,18 @@ class RAClient:
         return parse_page(response, CertificateDTO)
 
     async def list_first_page(self) -> Page[CertificateDTO]:
-        response = await self.transport.get("certificates")
+        response = await self.transport.get(
+            "certificates", params={"folder": self.certificate_folder}
+        )
         return parse_page(response, CertificateDTO)
 
     async def search_certificates(self, query: str) -> Page[CertificateDTO]:
         response = await self.transport.get(
-            "certificates", params={self.search_parameter: query}
+            "certificates",
+            params={
+                "folder": self.certificate_folder,
+                self.search_parameter: query,
+            },
         )
         return parse_page(response, CertificateDTO)
 

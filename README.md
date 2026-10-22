@@ -21,7 +21,7 @@ RA DP (Registration Authority Data Platform) — локальная платфо
 
 ## Архитектура
 
-Проект разделяет доменную модель, прикладные сценарии, инфраструктуру и интерфейсы. Зависимости собираются в `radp/bootstrap/container.py`; `radp/runtime.py` оставлен тонким совместимым фасадом. Прикладные сценарии зависят от портов, а инфраструктурные адаптеры реализуют эти порты.
+Проект разделяет доменную модель, прикладные сценарии, инфраструктуру и интерфейсы. Зависимости собираются в `radp/bootstrap/container.py`; получение контейнера выполняется через `radp/bootstrap/runtime.py`. Прикладные сценарии зависят от портов, а инфраструктурные адаптеры реализуют эти порты.
 
 ```text
 REST API Центра регистрации
@@ -75,7 +75,7 @@ radp/
 ├── infrastructure/    # PostgreSQL, репозитории, RA API и transport
 ├── interfaces/api/    # FastAPI
 ├── __main__.py        # python -m radp
-└── runtime.py         # тонкий совместимый фасад
+└── __main__.py        # python -m radp
 
 data/seed/oid_registry.json
 data/exports/
@@ -90,7 +90,7 @@ docker-compose.yml
 uv sync
 ```
 
-Настройки читаются через Pydantic Settings и переменные окружения с префиксом `RADP_`. Compose-файл использует следующие переменные для создания PostgreSQL:
+Настройки читаются через Pydantic Settings и переменные окружения с префиксом `RADP_`. Обязательно задайте `RADP_REMOTE_RA__CERTIFICATE_FOLDER`: это имя каталога RA передаётся параметром `folder` при запросе `GET /api/ra/certificates?folder=...`; значение не зашито в код. Compose-файл использует следующие переменные для создания PostgreSQL:
 
 ```dotenv
 RADP_DATABASE__NAME=radp
@@ -167,6 +167,7 @@ docker compose down
 | `python -m radp sync run` | Выполнить синхронизацию |
 | `python -m radp oid export` | Экспортировать справочник OID из БД в seed JSON |
 | `python -m radp export excel` | Создать XLSX-отчёт |
+| `python -m radp export flush` | Вручную удалить XLSX-файлы из `data/exports` (не запускается при старте) |
 | `python -m radp serve` | Запустить FastAPI |
 
 ## Проверки
