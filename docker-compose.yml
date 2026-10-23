@@ -1,6 +1,7 @@
 services:
   postgres:
     image: postgres:17
+    pull_policy: never
     container_name: radp-postgres
     restart: unless-stopped
     environment:
@@ -23,6 +24,7 @@ services:
 
   db-init:
     image: radp:latest
+    pull_policy: never
     container_name: radp-db-init
     env_file:
       - .env
@@ -39,10 +41,8 @@ services:
     restart: "no"
 
   platform:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
     image: radp:latest
+    pull_policy: never
     container_name: radp-platform
     restart: unless-stopped
     ports:
@@ -58,13 +58,14 @@ services:
       - ra-network
     labels:
       ofelia.enabled: "true"
-      ofelia.job-exec.sync.schedule: "0 0 2 * * *"
+      ofelia.job-exec.sync.schedule: "0 0 0 * * *"
       ofelia.job-exec.sync.command: >
         /app/.venv/bin/python -m radp sync run
       ofelia.job-exec.sync.no-overlap: "true"
 
   scheduler:
     image: mcuadros/ofelia:latest
+    pull_policy: never
     container_name: radp-scheduler
     restart: unless-stopped
     command: ["daemon", "--docker"]
