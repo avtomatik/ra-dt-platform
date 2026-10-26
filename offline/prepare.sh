@@ -1,174 +1,185 @@
 #!/usr/bin/env bash
-# Run as root on a CONNECTED, clean Astra Linux 1.7 amd64 VM.
-# The VM must not already have Docker/Compose installed: APT must resolve the
-# Docker dependency set against the same base package state as the clean target.
+# Run as root on the connected Astra Linux SE 1.7.8 amd64 preparation VM.
+# This script intentionally uses frozen Astra 1.7.8 repositories and pins the
+# Docker/Compose versions already established on the Test host.
 set -Eeuo pipefail
 umask 077
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd -P)"
-BUNDLE="${BUNDLE_DIR:-$ROOT/release/radp-offline}"
-DEBS="$BUNDLE/docker-install/debs"
-ENGINE_PACKAGE="${ENGINE_PACKAGE:-docker.io}"
-COMPOSE_PACKAGE="${COMPOSE_PACKAGE:-docker-compose-v2}"
-
+STAGE="$ROOT/release/radp-offline"
+DEBS="$STAGE/docker-install/debs"
+FROZEN_LIST="${FROZEN_LIST:-/tmp/astra-frozen-1.7.8.list}"
+APT_LISTS="${APT_LISTS:-/tmp/astra-frozen-lists}"
+ENGINE_PKG="docker.io"
+ENGINE_VER="25.0.5.astra3+ci24"
+COMPOSE_PKG="docker-compose"
+COMPOSE_VER="1.29.2-1astra.se1+ci1+b2"
 fail() { printf '\nERROR: %s\n' "$*" >&2; exit 1; }
-trap 'rc=$?; printf "\nPREPARATION FAILED (exit %s, line %s).\n" "$rc" "$LINENO" >&2; exit "$rc"' ERR
+trap 'rc=$?; if ((rc != 0)); then printf "\nPREPARATION FAILED (exit %s, line %s).\n" "$rc" "$LINENO" >&2; fi' EXIT
 
-[[ "$(id -u)" -eq 0 ]] || fail "Run inside the Astra VM with sudo: sudo ./offline/prepare.sh"
-for f in pyproject.toml uv.lock docker/Dockerfile docker-compose.yml .env; do
-  [[ -e "$ROOT/$f" ]] || fail "Required project path missing: $ROOT/$f"
-done
-[[ -d "$ROOT/radp" && -d "$ROOT/html" && -d "$ROOT/data" ]] || fail "Expected radp/, html/, and data/ directories at the project root."
-[[ -f /etc/os-release ]] || fail "Cannot identify the builder operating system."
+[[ $EUID -eq 0 ]] || fail "Run on the Astra preparation VM with sudo: sudo ./offline/prepare.sh"
+[[ -f /etc/os-release ]] || fail "Missing /etc/os-release"
 # shellcheck disable=SC1091
 . /etc/os-release
-[[ "${ID:-}" == "astra" ]] || fail "Builder must run Astra Linux (ID=astra); detected ID=${ID:-unknown}."
-[[ "$(dpkg --print-architecture)" == "amd64" ]] || fail "Expected dpkg architecture amd64."
-[[ "$(uname -m)" == "x86_64" ]] || fail "Expected native x86_64 VM; cross-architecture builds are not supported by this script."
+[[ "${ID:-}" == astra ]] || fail "Preparation must run on Astra Linux; detected ID=${ID:-unknown}."
+[[ "$(dpkg --print-architecture)" == amd64 && "$(uname -m)" == x86_64 ]] || fail "Expected native x86_64 / amd64."
+[[ -f /etc/astra_version ]] || fail "Cannot verify Astra release: /etc/astra_version missing."
+grep -q '1\.7\.8' /etc/astra_version || fail "This workflow is pinned to Astra Linux SE 1.7.8; /etc/astra_version does not say 1.7.8."
+for f in pyproject.toml uv.lock docker/Dockerfile docker-compose.yml .env; do
+  [[ -f "$ROOT/$f" ]] || fail "Required project file missing: $ROOT/$f"
+done
+for d in radp html data; do [[ -d "$ROOT/$d" ]] || fail "Required project directory missing: $ROOT/$d"; done
+command -v apt-get >/dev/null || fail "apt-get not found"
+command -v docker-compose >/dev/null || true
 
-# Critical: APT only downloads dependencies not already installed. Use a clean
-# matching Astra VM so the .deb set is complete for a clean target baseline.
-if command -v docker >/dev/null 2>&1 || command -v docker-compose >/dev/null 2>&1; then
-  fail "Docker/Compose is already installed on this VM. Use a clean clone/snapshot of the exact target Astra update level, then run this script there. Otherwise APT may omit dependencies already installed on this builder."
+# Use the frozen repo list already verified on this VM, or create the exact
+# Astra 1.7.8 base/update list. Do not use the host's live repo configuration.
+if [[ ! -s "$FROZEN_LIST" ]]; then
+  cat > "$FROZEN_LIST" <<'EOF'
+deb https://dl.astralinux.ru/astra/frozen/1.7_x86-64/1.7.8/repository-base/ 1.7_x86-64 main contrib non-free
+deb https://dl.astralinux.ru/astra/frozen/1.7_x86-64/1.7.8/repository-update/ 1.7_x86-64 main contrib non-free
+EOF
 fi
-for p in docker.io docker-ce docker-ce-cli docker-compose docker-compose-v2; do
-  status="$(dpkg-query -W -f='${db:Status-Status}' "$p" 2>/dev/null || true)"
-  [[ "$status" != "installed" ]] || fail "Package $p is already installed; use a clean matching Astra VM for complete dependency collection."
-done
+mkdir -p "$APT_LISTS/partial"
+APT_OPTS=(
+  -o "Dir::Etc::sourcelist=$FROZEN_LIST"
+  -o "Dir::Etc::sourceparts=/dev/null"
+  -o "Dir::State::lists=$APT_LISTS"
+  -o "Acquire::Retries=2"
+)
+apt-get "${APT_OPTS[@]}" update
 
-command -v apt-get >/dev/null || fail "apt-get is unavailable."
-command -v docker >/dev/null 2>&1 && fail "Docker unexpectedly appeared before package collection."
-command -v python3 >/dev/null || fail "python3 is needed for packaging."
+engine_candidate="$(apt-cache "${APT_OPTS[@]}" policy "$ENGINE_PKG" | awk '/Candidate:/ {print $2; exit}')"
+compose_candidate="$(apt-cache "${APT_OPTS[@]}" policy "$COMPOSE_PKG" | awk '/Candidate:/ {print $2; exit}')"
+[[ "$engine_candidate" == "$ENGINE_VER" ]] || fail "$ENGINE_PKG candidate is '$engine_candidate', expected pinned $ENGINE_VER from frozen Astra 1.7.8."
+[[ "$compose_candidate" == "$COMPOSE_VER" ]] || fail "$COMPOSE_PKG candidate is '$compose_candidate', expected pinned $COMPOSE_VER from frozen Astra 1.7.8."
 
-# Start fresh; never reuse a partial previous bundle.
-case "$BUNDLE" in
-  "$ROOT/release/radp-offline") ;;
-  *) fail "For safety, BUNDLE_DIR must be unset; output is fixed at $ROOT/release/radp-offline." ;;
-esac
-rm -rf -- "$BUNDLE"
-mkdir -p "$DEBS/partial" "$BUNDLE/data" "$BUNDLE/html" "$BUNDLE/scripts"
+# Install apt-rdepends on the builder if needed; it is a preparation helper,
+# not a runtime dependency. It is deliberately not included as a target package.
+if ! command -v apt-rdepends >/dev/null 2>&1; then
+  DEBIAN_FRONTEND=noninteractive apt-get "${APT_OPTS[@]}" install -y apt-rdepends
+fi
 
-# Stamp the base system BEFORE Docker packages are installed. The target
-# installer checks this fingerprint before changing the target OS.
-cp /etc/os-release "$BUNDLE/build-os-release"
-{
-  printf 'package\tversion\n'
-  for p in base-files libc6 libstdc++6 systemd systemd-sysv dpkg apt libseccomp2 libapparmor1 iptables nftables containerd runc openssl ca-certificates; do
-    version="$(dpkg-query -W -f='${Version}' "$p" 2>/dev/null || true)"
-    [[ -n "$version" ]] && printf '%s\t%s\n' "$p" "$version"
-  done
-} > "$BUNDLE/base-packages.tsv"
+# Rebuild staging so stale files from a prior attempt cannot silently ship.
+rm -rf -- "$STAGE"
+mkdir -p "$DEBS" "$STAGE/data" "$STAGE/html"
+cp /etc/os-release "$STAGE/build-os-release"
+printf 'linux/amd64\n' > "$STAGE/target-platform.txt"
+printf 'engine_package=%s\nengine_version=%s\ncompose_package=%s\ncompose_version=%s\n' \
+  "$ENGINE_PKG" "$ENGINE_VER" "$COMPOSE_PKG" "$COMPOSE_VER" > "$STAGE/os-packages.txt"
 
-printf '%s\n' "Checking Astra APT candidates..."
-apt-get update
-apt-cache policy "$ENGINE_PACKAGE" "$COMPOSE_PACKAGE" docker.io docker-compose-v2 docker-compose || true
-candidate_of() { apt-cache policy "$1" 2>/dev/null | awk '/Candidate:/ {print $2; exit}'; }
-engine_candidate="$(candidate_of "$ENGINE_PACKAGE")"
-compose_candidate="$(candidate_of "$COMPOSE_PACKAGE")"
-[[ -n "$engine_candidate" && "$engine_candidate" != "(none)" ]] || fail "No APT candidate for ENGINE_PACKAGE=$ENGINE_PACKAGE in the configured Astra repositories. See apt-cache policy output above."
-[[ -n "$compose_candidate" && "$compose_candidate" != "(none)" ]] || fail "No APT candidate for COMPOSE_PACKAGE=$COMPOSE_PACKAGE. Verify docker-compose-v2 availability; if Astra provides a different package, set COMPOSE_PACKAGE explicitly only if it installs a Compose v2-compatible docker-compose command."
+# Capture a conservative transitive dependency closure, including alternatives.
+# apt-rdepends can list virtual packages and alternative providers; only packages
+# with a real candidate are downloaded. This intentionally may include extra
+# dependency alternatives, which is safer than omitting a dependency.
+printf '\nResolving dependency package names from frozen Astra repositories...\n'
+apt-rdepends --follow=DEPENDS,PREDEPENDS "$ENGINE_PKG" "$COMPOSE_PKG" openssl ca-certificates \
+  2>/dev/null | awk '/^[[:alnum:]][[:alnum:]+.-]*(:[[:alnum:]-]+)?$/ {sub(/:.*/, "", $1); print $1}' \
+  | sort -u > "$STAGE/dependency-package-names.txt"
+printf '%s\n' "$ENGINE_PKG" "$COMPOSE_PKG" openssl ca-certificates >> "$STAGE/dependency-package-names.txt"
+sort -u -o "$STAGE/dependency-package-names.txt" "$STAGE/dependency-package-names.txt"
 
-printf '\nCollecting the OS dependency closure into %s ...\n' "$DEBS"
-# On a clean matching Astra base, APT downloads all packages needed but not
-# already installed. Those already installed must match the target baseline,
-# enforced via base-packages.tsv at install time.
-DEBIAN_FRONTEND=noninteractive apt-get --download-only --yes \
-  -o "Dir::Cache::archives=$DEBS/" \
-  -o Acquire::Retries=2 \
-  install "$ENGINE_PACKAGE" "$COMPOSE_PACKAGE" openssl ca-certificates
-shopt -s nullglob
-apt_debs=("$DEBS"/*.deb)
-((${#apt_debs[@]} >= 2)) || fail "APT did not download a usable .deb package set."
-# Verify top-level package archives were included.
-for required in "$ENGINE_PACKAGE" "$COMPOSE_PACKAGE"; do
-  found=0
-  for deb in "${apt_debs[@]}"; do
-    pkg="$(dpkg-deb -f "$deb" Package 2>/dev/null || true)"
-    [[ "$pkg" == "$required" ]] && found=1
-  done
-  ((found == 1)) || fail "Downloaded package archive for $required is missing."
-done
+while IFS= read -r pkg; do
+  [[ -n "$pkg" ]] || continue
+  candidate="$(apt-cache "${APT_OPTS[@]}" policy "$pkg" 2>/dev/null | awk '/Candidate:/ {print $2; exit}')"
+  [[ -n "$candidate" && "$candidate" != "(none)" ]] || continue
+  # Download every candidate even if already installed on the builder.
+  (cd "$DEBS" && apt-get "${APT_OPTS[@]}" download "$pkg=$candidate") \
+    || fail "Could not download dependency package $pkg=$candidate from the frozen repositories."
+done < "$STAGE/dependency-package-names.txt"
 
-printf '\nInstalling Docker/Compose on the connected builder for image preparation...\n'
-DEBIAN_FRONTEND=noninteractive apt-get install --yes "$ENGINE_PACKAGE" "$COMPOSE_PACKAGE" openssl ca-certificates
-command -v systemctl >/dev/null || fail "systemctl is not available."
+# Ensure the exact pinned top-level packages are present (not just candidates).
+(cd "$DEBS" && apt-get "${APT_OPTS[@]}" download "$ENGINE_PKG=$ENGINE_VER" "$COMPOSE_PKG=$COMPOSE_VER") \
+  || fail "Could not download pinned Docker/Compose packages."
+
+# Remove duplicate package versions, retaining the exact candidate package per name.
+# apt-get download names files package_version_arch.deb. Keep every version for now;
+# APT will choose the compatible version when installing the local archive set.
+
+# Install the pinned Docker/Compose packages on this connected preparation VM.
+DEBIAN_FRONTEND=noninteractive apt-get "${APT_OPTS[@]}" install -y \
+  "$ENGINE_PKG=$ENGINE_VER" "$COMPOSE_PKG=$COMPOSE_VER" openssl ca-certificates
 systemctl enable --now docker
 docker info >/dev/null
-docker --version
-command -v docker-compose >/dev/null || fail "Package $COMPOSE_PACKAGE did not provide the required docker-compose command."
+[[ "$(docker --version)" == *"25.0.5"* ]] || fail "Unexpected Docker version: $(docker --version)"
 compose_version="$(docker-compose version 2>&1)"
-printf '%s\n' "$compose_version"
-grep -Eiq '(^|[^0-9])v?2\.[0-9]+\.[0-9]+' <<<"$compose_version" || fail "docker-compose is not Compose v2. The required --pull never / --no-build flow is unsupported."
-up_help="$(docker-compose up --help 2>&1)"
-grep -q -- '--pull' <<<"$up_help" || fail "docker-compose up does not support --pull."
-grep -q -- '--no-build' <<<"$up_help" || fail "docker-compose up does not support --no-build."
-if grep -Eq '^[[:space:]]*build[[:space:]]*:' "$ROOT/docker-compose.yml"; then
-  fail "docker-compose.yml contains build:; offline deployment must use prebuilt images only."
-fi
-policy_count="$(grep -Ec '^[[:space:]]*pull_policy:[[:space:]]*never[[:space:]]*$' "$ROOT/docker-compose.yml" || true)"
-((policy_count >= 4)) || fail "Expected pull_policy: never on all four Compose services; found $policy_count entries."
-(cd "$ROOT" && docker-compose config -q) || fail "Project docker-compose.yml/.env validation failed on the builder."
+grep -q '1\.29\.2' <<<"$compose_version" || fail "Expected docker-compose 1.29.2, got: $compose_version"
+printf '%s\n' "$compose_version" > "$STAGE/compose-version.txt"
 
-# Build in a temporary staging context that explicitly excludes .env and any
-# prior offline bundle. This avoids baking project secrets into the image even
-# if the repository's .dockerignore is incomplete.
+# Compose v1 does not support --pull never. Validate config and export every
+# image named by the real Compose file, rather than assuming service/container names.
+(cd "$ROOT" && docker-compose config -q) || fail "docker-compose config failed. Fix the project's Compose/.env first."
+mapfile -t compose_images < <(cd "$ROOT" && docker-compose config --images | sort -u)
+((${#compose_images[@]} > 0)) || fail "Compose config returned no images."
+printf '%s\n' "${compose_images[@]}" > "$STAGE/compose-images.txt"
+
+# Build the RADP application image without putting .env into the build context.
 BUILD_CONTEXT="$(mktemp -d /tmp/radp-build-context.XXXXXX)"
 cleanup() { rm -rf -- "$BUILD_CONTEXT"; }
 trap 'rc=$?; cleanup; if ((rc != 0)); then printf "\nPREPARATION FAILED (exit %s, line %s).\n" "$rc" "$LINENO" >&2; fi; exit "$rc"' EXIT
-# Exclude hidden secrets and local build output. Preserve required source/data.
 tar -C "$ROOT" \
   --exclude='./.git' --exclude='./.env' --exclude='./.env.*' \
   --exclude='./offline' --exclude='./release' --exclude='./.venv' \
   --exclude='*/__pycache__' --exclude='*.pyc' \
   -cf - . | tar -C "$BUILD_CONTEXT" -xf -
-[[ ! -e "$BUILD_CONTEXT/.env" ]] || fail ".env unexpectedly leaked into the staged Docker build context."
-docker build --pull --tag radp:latest --file "$BUILD_CONTEXT/docker/Dockerfile" "$BUILD_CONTEXT"
-# Native x86_64 Astra VM: image pulls naturally select linux/amd64.
+[[ ! -e "$BUILD_CONTEXT/.env" ]] || fail ".env leaked into Docker build context."
+docker build --pull -t radp:latest -f "$BUILD_CONTEXT/docker/Dockerfile" "$BUILD_CONTEXT"
+
+# Pull public upstream images, then alias them to the exact names referenced by
+# Compose. Existing custom/internal image names are preserved as Compose tags.
 docker pull postgres:17
 docker pull mcuadros/ofelia:latest
-
-for img in radp:latest postgres:17 mcuadros/ofelia:latest; do
-  docker image inspect "$img" >/dev/null || fail "Required image missing after build/pull: $img"
-  os="$(docker image inspect --format '{{.Os}}' "$img")"
-  arch="$(docker image inspect --format '{{.Architecture}}' "$img")"
-  [[ "$os/$arch" == "linux/amd64" ]] || fail "$img has platform $os/$arch, expected linux/amd64."
+for ref in "${compose_images[@]}"; do
+  case "$ref" in
+    */postgres:17|postgres:17) docker image tag postgres:17 "$ref" ;;
+    */mcuadros/ofelia:latest|mcuadros/ofelia:latest) docker image tag mcuadros/ofelia:latest "$ref" ;;
+    *radp*) docker image tag radp:latest "$ref" ;;
+    *)
+      docker image inspect "$ref" >/dev/null 2>&1 || fail "Compose references '$ref', but it is not present locally and this script has no safe source mapping for it."
+      ;;
+  esac
+  docker image inspect "$ref" >/dev/null || fail "Required Compose image is missing: $ref"
+  platform="$(docker image inspect --format '{{.Os}}/{{.Architecture}}' "$ref")"
+  [[ "$platform" == linux/amd64 ]] || fail "Image $ref has platform $platform, expected linux/amd64."
 done
 
-# Include the actual project Compose file and any relative runtime assets.
-cp "$ROOT/docker-compose.yml" "$BUNDLE/docker-compose.yml"
-cp -a "$ROOT/data/." "$BUNDLE/data/"
-cp -a "$ROOT/html/." "$BUNDLE/html/"
-printf 'linux/amd64\n' > "$BUNDLE/target-platform.txt"
-printf 'engine_package=%s\ncompose_package=%s\n' "$ENGINE_PACKAGE" "$COMPOSE_PACKAGE" > "$BUNDLE/os-packages.txt"
-printf '%s\n' "$compose_version" > "$BUNDLE/compose-version-on-builder.txt"
-docker image inspect radp:latest postgres:17 mcuadros/ofelia:latest > "$BUNDLE/image-metadata.json"
-docker image save --output "$BUNDLE/images.tar" radp:latest postgres:17 mcuadros/ofelia:latest
-cp "$SCRIPT_DIR/install.sh" "$BUNDLE/install.sh"
-chmod 0755 "$BUNDLE/install.sh"
+# Copy runtime assets referenced by the known project layout.
+cp "$ROOT/docker-compose.yml" "$STAGE/docker-compose.yml"
+cp -a "$ROOT/data/." "$STAGE/data/"
+cp -a "$ROOT/html/." "$STAGE/html/"
+cp "$SCRIPT_DIR/install.sh" "$STAGE/install.sh"
+chmod 0755 "$STAGE/install.sh"
+docker image inspect "${compose_images[@]}" > "$STAGE/image-metadata.json"
+docker image save --output "$STAGE/images.tar" "${compose_images[@]}"
 
-# Encrypt, never copy, the plaintext environment file into the bundle.
-[[ -s "$ROOT/.env" ]] || fail "Project .env is empty; refusing to produce a bundle with ambiguous runtime configuration."
-read -r -s -p 'Enter passphrase to encrypt .env for the ZIP: ' pass1; printf '\n'
+# Record the package inventory. The clean disconnected target test remains the
+# final authority on dependency closure.
+: > "$STAGE/docker-install/package-inventory.tsv"
+for deb in "$DEBS"/*.deb; do
+  [[ -f "$deb" ]] || continue
+  printf '%s\t%s\t%s\t%s\n' \
+    "$(dpkg-deb -f "$deb" Package)" \
+    "$(dpkg-deb -f "$deb" Version)" \
+    "$(dpkg-deb -f "$deb" Architecture)" \
+    "$(basename "$deb")" >> "$STAGE/docker-install/package-inventory.tsv"
+done
+sort -u -o "$STAGE/docker-install/package-inventory.tsv" "$STAGE/docker-install/package-inventory.tsv"
+
+[[ -s "$ROOT/.env" ]] || fail "Project .env is missing or empty."
+read -r -s -p 'Passphrase to encrypt .env for the offline ZIP: ' pass1; printf '\n'
 read -r -s -p 'Repeat passphrase: ' pass2; printf '\n'
 [[ -n "$pass1" && "$pass1" == "$pass2" ]] || fail "Passphrases are empty or do not match."
 printf '%s' "$pass1" | openssl enc -aes-256-cbc -salt -pbkdf2 -iter 250000 -pass stdin \
-  -in "$ROOT/.env" -out "$BUNDLE/.env.enc"
-# Verify we can recover the exact source .env, without retaining plaintext.
+  -in "$ROOT/.env" -out "$STAGE/.env.enc"
 tmp_env="$(mktemp /tmp/radp-env-check.XXXXXX)"
-if ! printf '%s' "$pass1" | openssl enc -d -aes-256-cbc -pbkdf2 -iter 250000 -pass stdin \
-    -in "$BUNDLE/.env.enc" -out "$tmp_env"; then
-  rm -f "$tmp_env"; unset pass1 pass2; fail "Could not verify encrypted .env."
-fi
-cmp -s "$ROOT/.env" "$tmp_env" || { rm -f "$tmp_env"; unset pass1 pass2; fail "Encrypted .env verification mismatch."; }
+printf '%s' "$pass1" | openssl enc -d -aes-256-cbc -pbkdf2 -iter 250000 -pass stdin \
+  -in "$STAGE/.env.enc" -out "$tmp_env" || fail "Could not verify encrypted .env."
+cmp -s "$ROOT/.env" "$tmp_env" || fail "Encrypted .env verification mismatch."
 rm -f "$tmp_env"
 unset pass1 pass2
-[[ ! -e "$BUNDLE/.env" ]] || fail "Plaintext .env must never be included in the bundle."
-
-# Metadata helps diagnostics; it is not a substitute for clean offline testing.
+[[ ! -e "$STAGE/.env" ]] || fail "Plaintext .env must not be in staging."
 printf '\nPREPARATION SUCCESS\n'
-printf 'Bundle staging directory: %s\n' "$BUNDLE"
-printf 'OS packages collected: %s .deb files\n' "${#apt_debs[@]}"
-printf 'Images saved: radp:latest, postgres:17, mcuadros/ofelia:latest\n'
-printf 'Environment file: encrypted as .env.enc (plaintext excluded)\n'
-printf 'IMPORTANT: this is not yet a portability claim; package and ZIP, then test on a clean matching Astra VM with its virtual NIC disconnected.\n'
+printf 'Staging: %s\n.deb files: %s\nCompose images: %s\n' "$STAGE" "$(find "$DEBS" -maxdepth 1 -name '*.deb' | wc -l)" "${#compose_images[@]}"
+printf 'Next: sudo ./offline/package.sh\n'
+printf 'Note: complete dependency closure is accepted only after install succeeds on a clean, disconnected Astra 1.7.8 VM.\n'

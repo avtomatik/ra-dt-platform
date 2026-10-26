@@ -1,34 +1,64 @@
-# RADP offline bundle scripts
+# RADP offline deployment workflow
 
-These scripts are intended to be copied to the repository's `offline/` directory. Run them **inside a connected Astra Linux 1.7 x86-64 VM**, using the same Astra update level as the eventual target.
+## Scope
 
-## Important baseline requirement
+This workflow targets **Astra Linux SE 1.7.8, amd64/x86_64**, Docker Engine
+`25.0.5.astra3+ci24`, and `docker-compose` v1.29.2. It packages images named
+by the actual `docker-compose.yml`, plus an encrypted `.env`, into one ZIP.
 
-`prepare.sh` intentionally refuses to run if Docker or Compose is already installed. APT omits packages that it believes are already installed; gathering a complete dependency set therefore needs a clean matching Astra baseline. Use a fresh clone/snapshot of the target Astra VM with internet access, then run the preparation script there. The script collects `.deb` files before installing Docker for the build.
+It is not certified portable until the ZIP installs and starts successfully on
+a clean matching VM while its virtual network adapter is disconnected.
 
-The default expected APT packages are `docker.io` and `docker-compose-v2`. The script reports APT candidates and verifies that the installed `docker-compose` command is Compose v2 and supports `--pull` and `--no-build`. If Astra's repositories name the v2 package differently, rerun with an explicit override only after verifying the package really provides that CLI, for example `sudo env COMPOSE_PACKAGE=some-package ./offline/prepare.sh`.
+## Run on the connected Astra 1.7.8 preparation VM
 
-## Build and package
-
-From the repository root on the connected Astra VM:
+From the repository root:
 
 ```bash
+chmod +x offline/prepare.sh offline/package.sh offline/install.sh
 sudo ./offline/prepare.sh
 sudo ./offline/package.sh
 ```
 
-During preparation, enter a strong passphrase twice to encrypt `.env`. The ZIP contains `.env.enc`, not plaintext `.env`; you will need the same passphrase during installation. The build context is staged without `.env` to avoid copying secrets into the RADP image.
+Output: `release/radp-offline.zip`. Keep generated ZIPs, `.deb` files, image
+archives, and secrets out of Git. Commit the scripts, README, and `.dockerignore`.
 
-Expected completion messages are `PREPARATION SUCCESS` and `PACKAGE SUCCESS`. Neither means that offline portability has been proven.
+Preparation uses frozen Astra 1.7.8 base/update repositories. It downloads a
+conservative dependency closure with `apt-rdepends`; this can include extra
+alternatives. It then installs the pinned Docker/Compose versions on the
+preparation VM, builds RADP, pulls PostgreSQL 17 and Ofelia, and tags them to
+match the image references in Compose. If the actual Compose references contain
+another image, the script stops rather than guessing where to obtain it.
 
-## Mandatory clean offline test
+The `.env` is encrypted with OpenSSL AES-256-CBC + PBKDF2 (250,000 iterations).
+Keep the passphrase out of Git and transfer it separately to the authorized
+installer. The plaintext `.env` is never written into the ZIP.
 
-1. Create a clean VM from the same Astra 1.7 update-level baseline. Do not install Docker manually.
-2. Disconnect/disable the VM's virtual network adapter in the hypervisor. Do not merely assume the guest has no internet.
-3. Transfer and extract `radp-offline.zip` into a directory.
-4. Run `sudo ./install.sh` from the extracted `radp-offline/` directory and enter the `.env` encryption passphrase.
-5. Accept the bundle as offline-tested only if the script prints `DEPLOYMENT SUCCESS` and the VM's virtual NIC was disconnected for the entire installation.
+## Required acceptance test
 
-The install script does not run `apt-get update`, does not download packages, does not pull images, and does not build images. It checks `SHA256SUMS`, Astra/base-package fingerprints, local package installation, image architecture/tags, Compose config, container startup, database readiness, successful `db-init`, and TCP readiness on port 9000.
+1. Create a clean VM matching the production Astra 1.7.8 update/base package
+   baseline. Do not use a VM with pre-installed Docker/Compose for the acceptance
+   test.
+2. Disconnect its virtual NIC before installing.
+3. Transfer and extract the ZIP into a new directory.
+4. Run `sudo ./install.sh` from that directory and enter the encryption passphrase.
+5. Confirm the installer prints `DEPLOYMENT SUCCESS`.
+6. If this succeeds with networking disconnected, record `OFFLINE TEST SUCCESS`
+   in the release/change record. Do not claim offline portability before then.
 
-The installer is for a fresh deployment. Do not use it as a database migration or destructive reset mechanism. Existing Docker volumes are not deleted.
+The installer uses `apt-get --no-download`; it cannot fetch missing OS packages.
+If that step fails on the clean target, the dependency archive is incomplete or
+the target base differs. Capture the missing package names and update the
+preparation workflow, then rebuild and retest.
+
+## Safety notes
+
+- Fresh deployment only. The installer refuses to overwrite an existing `.env`.
+- It does not remove Docker volumes or delete existing containers/volumes.
+- Do not run this installer against an existing production deployment without a
+  separate backup/rollback plan.
+- PostgreSQL should remain internal to the Compose network; verify the actual
+  Compose file does not publish port 5432.
+- Compose v1.29.2 does not support `--pull never`; the installer instead checks
+  the complete image manifest is loaded locally and invokes `docker-compose up
+  -d --no-build`. The disconnected-network acceptance test is the proof that
+  no network access is required.

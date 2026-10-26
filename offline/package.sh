@@ -1,69 +1,52 @@
 #!/usr/bin/env bash
-# Run on the connected Astra builder after prepare.sh succeeds.
 set -Eeuo pipefail
 umask 077
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd -P)"
-BUNDLE="$ROOT/release/radp-offline"
+STAGE="$ROOT/release/radp-offline"
 ZIP="$ROOT/release/radp-offline.zip"
-fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
-trap 'rc=$?; if ((rc != 0)); then printf "PACKAGE FAILED (exit %s, line %s).\n" "$rc" "$LINENO" >&2; fi' EXIT
-
-[[ -d "$BUNDLE" ]] || fail "Missing $BUNDLE; run ./offline/prepare.sh first."
-for f in images.tar docker-compose.yml .env.enc build-os-release base-packages.tsv install.sh target-platform.txt; do
-  [[ -f "$BUNDLE/$f" ]] || fail "Bundle component missing: $f"
+fail() { printf '\nERROR: %s\n' "$*" >&2; exit 1; }
+trap 'rc=$?; if ((rc != 0)); then printf "\nPACKAGE FAILED (exit %s, line %s).\n" "$rc" "$LINENO" >&2; fi' EXIT
+[[ -d "$STAGE" ]] || fail "Missing $STAGE; run prepare.sh first."
+for f in images.tar docker-compose.yml .env.enc install.sh target-platform.txt compose-images.txt; do
+  [[ -s "$STAGE/$f" ]] || fail "Missing/empty required file: $f"
 done
-[[ -d "$BUNDLE/docker-install/debs" ]] || fail "Missing local OS package directory."
-shopt -s nullglob
-packages=("$BUNDLE/docker-install/debs"/*.deb)
-((${#packages[@]} > 0)) || fail "No .deb packages were collected."
-[[ ! -e "$BUNDLE/.env" ]] || fail "Plaintext .env exists in bundle staging; remove it and rerun preparation."
-command -v sha256sum >/dev/null || fail "sha256sum is required."
-command -v python3 >/dev/null || fail "python3 is required."
-
-cd "$BUNDLE"
+[[ "$(cat "$STAGE/target-platform.txt")" == linux/amd64 ]] || fail "Wrong target platform."
+[[ ! -e "$STAGE/.env" ]] || fail "Plaintext .env exists in staging; refusing to package."
+[[ -d "$STAGE/docker-install/debs" ]] || fail "Missing .deb directory."
+compgen -G "$STAGE/docker-install/debs/*.deb" >/dev/null || fail "No .deb packages collected."
+command -v python3 >/dev/null || fail "python3 is required for ZIP creation."
+cd "$STAGE"
 rm -f SHA256SUMS
 find . -type f ! -name SHA256SUMS ! -name .env -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
-sha256sum -c SHA256SUMS >/dev/null
-
+sha256sum -c SHA256SUMS
 mkdir -p "$ROOT/release"
 rm -f "$ZIP"
-python3 - "$BUNDLE" "$ZIP" <<'PY'
+python3 - "$STAGE" "$ZIP" <<'PY'
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZIP_STORED, ZipFile
 import sys
-root = Path(sys.argv[1]).resolve()
-archive = Path(sys.argv[2]).resolve()
-with ZipFile(archive, "w", compression=ZIP_DEFLATED, compresslevel=6, allowZip64=True) as zf:
+root, archive = Path(sys.argv[1]).resolve(), Path(sys.argv[2]).resolve()
+with ZipFile(archive, "w", compression=ZIP_DEFLATED, compresslevel=5, allowZip64=True) as z:
     for p in sorted(root.rglob("*")):
-        if not p.is_file():
-            continue
-        rel = p.relative_to(root.parent)
-        # TAR and .deb files are already compressed; storing them avoids wasteful CPU.
-        method = ZIP_STORED if p.suffix in {".tar", ".deb"} else ZIP_DEFLATED
-        zf.write(p, rel.as_posix(), compress_type=method)
-with ZipFile(archive, "r") as zf:
-    names = zf.namelist()
+        if p.is_file():
+            z.write(p, p.relative_to(root.parent).as_posix(),
+                    compress_type=ZIP_STORED if p.suffix in {".tar", ".deb"} else ZIP_DEFLATED)
+with ZipFile(archive) as z:
+    names = z.namelist()
     if any(Path(n).name == ".env" for n in names):
-        raise SystemExit("ERROR: ZIP contains a plaintext .env entry")
+        raise SystemExit("ERROR: plaintext .env found in ZIP")
     if not any(Path(n).name == ".env.enc" for n in names):
-        raise SystemExit("ERROR: ZIP lacks encrypted .env.enc")
-    bad = zf.testzip()
+        raise SystemExit("ERROR: .env.enc missing")
+    bad = z.testzip()
     if bad:
-        raise SystemExit(f"ERROR: ZIP CRC check failed for {bad}")
+        raise SystemExit(f"ERROR: ZIP CRC failure: {bad}")
 PY
 chmod 0600 "$ZIP"
-# When invoked through sudo, make only the ZIP readable by the invoking user.
-# The staging directory and encrypted config remain root-restricted.
 if [[ -n "${SUDO_USER:-}" && "$SUDO_USER" != root ]]; then
-  user_group="$(id -gn "$SUDO_USER")"
-  chown "$SUDO_USER:$user_group" "$ZIP"
+  chown "$SUDO_USER:$(id -gn "$SUDO_USER")" "$ZIP"
 fi
-printf '\nPACKAGE SUCCESS\n'
-printf 'ZIP: %s\n' "$ZIP"
-printf 'Size: %s bytes\n' "$(stat -c '%s' "$ZIP")"
-printf 'ZIP SHA-256: '
+printf '\nPACKAGE SUCCESS\nZIP: %s\nSize: %s bytes\nSHA-256: ' "$ZIP" "$(stat -c '%s' "$ZIP")"
 sha256sum "$ZIP"
-printf 'Checksums inside ZIP: verified\n'
-printf 'Plaintext .env inside ZIP: NO\n'
-printf 'OFFLINE TEST REQUIRED: extract and install on a clean matching Astra VM with its virtual NIC disconnected.\n'
+printf 'Plaintext .env in ZIP: NO\n'
+printf 'Now test this ZIP on a clean Astra Linux SE 1.7.8 amd64 VM with its network adapter disconnected.\n'
