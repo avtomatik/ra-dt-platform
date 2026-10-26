@@ -25,7 +25,6 @@ def flush(_args: argparse.Namespace) -> None:
         raise NotADirectoryError(
             f"Export path is not a directory: {EXPORTS_DIR}"
         )
-
     for path in EXPORTS_DIR.iterdir():
         if (
             path.suffix.lower() != ".xlsx"
@@ -36,5 +35,4 @@ def flush(_args: argparse.Namespace) -> None:
         path.unlink()
         logger.info("Removed generated export %s", path)
         removed += 1
-
     logger.info("Export flush completed. Files removed=%d", removed)

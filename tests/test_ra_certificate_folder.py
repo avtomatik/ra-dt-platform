@@ -22,9 +22,7 @@ class FakeTransport:
 def test_collection_endpoint_receives_configured_folder():
     transport = FakeTransport()
     client = RAClient(transport, certificate_folder="production folder/2026")
-
     page = asyncio.run(client.list_first_summary_page())
-
     assert page.items == []
     assert transport.calls == [
         ("certificates", {"folder": "production folder/2026"}, None)
@@ -34,9 +32,7 @@ def test_collection_endpoint_receives_configured_folder():
 def test_search_endpoint_receives_configured_folder():
     transport = FakeTransport()
     client = RAClient(transport, certificate_folder="production-folder")
-
     asyncio.run(client.search_certificates("Alice"))
-
     assert transport.calls == [
         (
             "certificates",
@@ -53,7 +49,6 @@ def test_folder_is_url_encoded_as_query_parameter():
         "certificates",
         params={"folder": "production folder/2026"},
     )
-
     assert url == (
         "https://example.test/api/ra/certificates?"
         "folder=production+folder%2F2026"
@@ -90,7 +85,6 @@ def test_summary_status_is_normalized_without_changing_full_list_payload():
 
     client = RAClient(PayloadTransport(), certificate_folder="production")
     first_summary_page = asyncio.run(client.list_first_summary_page())
-
     assert first_summary_page.items[0].status is CertificateStatus.VALID
     assert first_summary_page.items[0].serial_number == (
         "019D72F959835E028A425FE059019C9F5E"

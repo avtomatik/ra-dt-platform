@@ -1,10 +1,12 @@
+from collections.abc import AsyncIterator
+
 from radp.infrastructure.ra_api.dto.certificate import (CertificateDetailDTO,
                                                         CertificateSummaryDTO)
 from radp.infrastructure.ra_api.dto.pages import Page
 from radp.infrastructure.transport.base import Transport
 
 from .enums import SearchParameter
-from .pagination import paginate
+from .pagination import paginate_pages
 from .parser import parse_page, parse_response
 
 
@@ -45,12 +47,14 @@ class RAClient:
         )
         return parse_page(response, CertificateSummaryDTO)
 
-    async def iter_certificate_summary_pages(self):
+    async def iter_certificate_summary_pages(
+        self,
+    ) -> AsyncIterator[Page[CertificateSummaryDTO]]:
         first_page = await self.list_first_summary_page()
-        async for item in paginate(
+        async for page in paginate_pages(
             first_page, self._fetch_certificate_summary_page
         ):
-            yield item
+            yield page
 
     async def get_certificate(
         self, certificate_id: str

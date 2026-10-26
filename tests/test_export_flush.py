@@ -23,11 +23,8 @@ def test_flush_removes_only_regular_xlsx_files_in_export_directory(
         symlink.symlink_to(outside)
     except OSError:
         symlink = None
-
     monkeypatch.setattr(export_cli, "EXPORTS_DIR", exports)
-
     export_cli.flush(None)
-
     assert not xlsx.exists()
     assert not uppercase_xlsx.exists()
     assert csv.exists()
@@ -46,6 +43,5 @@ def test_flush_raises_if_export_path_is_not_a_directory(tmp_path, monkeypatch):
     path = tmp_path / "exports"
     path.write_text("not a directory", encoding="utf-8")
     monkeypatch.setattr(export_cli, "EXPORTS_DIR", path)
-
     with pytest.raises(NotADirectoryError):
         export_cli.flush(None)

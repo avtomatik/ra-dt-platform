@@ -21,33 +21,22 @@ class CertificateSynchronizer:
 
     async def synchronize(self) -> int:
         created = updated = unchanged = 0
-
-        # Keep the RA pagination boundary: one status-only DB query per page.
         async for page in self.client.iter_certificate_summary_pages():
             summaries = page.items
-            existing_lifecycles = self.certificates.get_lifecycles(
+            existing_by_id = self.certificates.get_lifecycles(
                 [summary.id for summary in summaries]
             )
-
             for summary in summaries:
-                existing = existing_lifecycles.get(summary.id)
-
-                # Matching normalized statuses need no detail request or X.509
-                # parsing. Lifecycle metadata is refreshed when the status
-                # changes, since the collection endpoint does not expose it.
+                existing = existing_by_id.get(summary.id)
                 if existing is not None and existing.status == summary.status:
                     unchanged += 1
                     continue
-
                 detail = await self.client.get_certificate(str(summary.id))
                 current = self.factory.create(detail)
-
                 if existing is None:
                     self.certificates.save(current)
-                    existing_lifecycles[summary.id] = current.lifecycle
                     created += 1
                     continue
-
                 state = current.lifecycle
                 if (
                     existing.status != state.status
@@ -60,13 +49,9 @@ class CertificateSynchronizer:
                         revoked_when=state.revoked_when,
                         revocation_reason=state.revocation_reason,
                     )
-                    existing_lifecycles[summary.id] = state
                     updated += 1
                 else:
-                    # The page can be stale relative to the detail endpoint;
-                    # count it as unchanged if details confirm DB state.
                     unchanged += 1
-
         logger.info(
             "Synchronization finished. created=%d lifecycle_updated=%d unchanged=%d",
             created,

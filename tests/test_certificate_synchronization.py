@@ -63,7 +63,6 @@ def summary(certificate_id, status):
 @pytest.mark.asyncio
 async def test_summary_status_is_normalized_to_domain_enum():
     parsed = summary(uuid4(), "Valid")
-
     assert parsed.status is CertificateStatus.VALID
 
 
@@ -76,11 +75,9 @@ async def test_matching_statuses_skip_detail_fetch_and_x509_factory():
         {certificate_id: CertificateLifecycle(status="VALID")}
     )
     factory = FakeFactory()
-
     result = await CertificateSynchronizer(
         client, repository, factory
     ).synchronize()
-
     assert result == 0
     assert client.detail_calls == []
     assert factory.calls == []
@@ -108,11 +105,9 @@ async def test_status_mismatch_fetches_detail_and_updates_lifecycle():
         {certificate_id: CertificateLifecycle(status="VALID")}
     )
     factory = FakeFactory()
-
     result = await CertificateSynchronizer(
         client, repository, factory
     ).synchronize()
-
     assert result == 1
     assert client.detail_calls == [str(certificate_id)]
     assert repository.updated == [
@@ -140,11 +135,9 @@ async def test_new_certificate_fetches_detail_and_saves_full_certificate():
     )
     repository = FakeRepository()
     factory = FakeFactory()
-
     result = await CertificateSynchronizer(
         client, repository, factory
     ).synchronize()
-
     assert result == 1
     assert client.detail_calls == [str(certificate_id)]
     assert repository.saved == [detail]
