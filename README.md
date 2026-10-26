@@ -189,6 +189,17 @@ uv run python -m radp doctor
 - Планирование синхронизации выполняется внешним планировщиком, а не встроенным scheduler-модулем приложения.
 - Справочник OID можно воспроизводимо экспортировать из БД в seed JSON.
 
+### Certificate synchronization efficiency
+
+Certificate list pages are parsed into lightweight ID/status summaries. The synchronizer
+normalizes RA statuses to canonical values (`VALID`, `REVOKED`, `EXPIRED`) and performs
+one status/lifecycle-column lookup for the IDs on each page. It fetches and parses a full
+certificate only for new records or when the list status differs from the stored status.
+
+Because the collection endpoint does not expose revocation timestamps/reasons, changes to
+those fields without a status change are intentionally not detected by this fast path. A
+separate forced-refresh/reconciliation operation would be needed if that case must be covered.
+
 ## Лицензия
 
 Проект распространяется в соответствии с лицензией, указанной в файле [LICENSE.md](LICENSE.md).

@@ -8,7 +8,7 @@ router = APIRouter(prefix="/adapter", tags=["adapter"])
 
 @router.get("/certificates")
 async def list_first_page(runtime: Container = Depends(get_container)):
-    page = await runtime.client.list_first_page()
+    page = await runtime.client.list_first_summary_page()
     return page.model_dump(by_alias=True)
 
 

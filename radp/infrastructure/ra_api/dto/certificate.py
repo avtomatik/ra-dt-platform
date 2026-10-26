@@ -4,10 +4,12 @@ from uuid import UUID
 
 from pydantic import Field
 
+from radp.domain.models.certificate import CertificateStatus
+
 from .base import DTOModel
 
 
-class CertificateDTO(DTOModel):
+class CertificateBaseDTO(DTOModel):
     id: UUID
     name_attributes: Mapping[str, str] = Field(
         validation_alias="nameAttributes"
@@ -18,7 +20,13 @@ class CertificateDTO(DTOModel):
     not_after: datetime = Field(validation_alias="notAfter")
     key_not_after: datetime = Field(validation_alias="keyNotAfter")
     created_when: datetime = Field(validation_alias="createdWhen")
-    status: str
+    status: CertificateStatus
+
+
+class CertificateSummaryDTO(CertificateBaseDTO): ...
+
+
+class CertificateDetailDTO(CertificateSummaryDTO):
     cert_request_id: str | None = Field(None, validation_alias="certRequestId")
     subject: str | None = None
     issuer: str | None = None

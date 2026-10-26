@@ -10,7 +10,7 @@ from radp.domain.models.metadata import CertificateMetadata
 from radp.domain.models.name import DistinguishedName
 from radp.domain.models.public_key import PublicKey
 from radp.domain.models.x509 import X509Certificate
-from radp.infrastructure.ra_api.dto.certificate import CertificateDTO
+from radp.infrastructure.ra_api.dto.certificate import CertificateDetailDTO
 
 from .decoder import CertificateDecoder
 
@@ -33,7 +33,9 @@ class CertificateFactory:
             return definition
         return self.oid_repository.ensure(oid)
 
-    def _build_metadata(self, dto: CertificateDTO) -> CertificateMetadata:
+    def _build_metadata(
+        self, dto: CertificateDetailDTO
+    ) -> CertificateMetadata:
         return CertificateMetadata(
             id=dto.id,
             serial_number=dto.serial_number,
@@ -138,7 +140,7 @@ class CertificateFactory:
             )
         return result
 
-    def create(self, dto: CertificateDTO) -> Certificate:
+    def create(self, dto: CertificateDetailDTO) -> Certificate:
         der, cert = self.decoder.decode(dto)
         return Certificate(
             certificate_id=dto.id,

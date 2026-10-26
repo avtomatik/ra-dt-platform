@@ -9,7 +9,7 @@ router = APIRouter(prefix="/web", tags=["web"])
 
 @router.get("", response_class=HTMLResponse)
 async def home(runtime: Container = Depends(get_container)):
-    page = await runtime.client.list_first_page()
+    page = await runtime.client.list_first_summary_page()
     page_items = page.items
     html = f"""
     <html>
