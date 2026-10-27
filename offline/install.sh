@@ -51,7 +51,12 @@ if grep -Eq '^[[:space:]]*build[[:space:]]*:' "$ROOT/docker-compose.yml"; then
 fi
 (cd "$ROOT" && docker-compose config -q) || fail "Compose config validation failed."
 mapfile -t expected_images < "$ROOT/compose-images.txt"
-mapfile -t configured_images < <(cd "$ROOT" && docker-compose config --images | sort -u)
+# Compose v1.29.2 has no `config --images` option. Extract image fields
+# from the normalized Compose YAML, using the same method as prepare.sh.
+mapfile -t configured_images < <(
+  cd "$ROOT"
+  docker-compose config | awk '$1 == "image:" {print $2}' | sort -u
+)
 ((${#configured_images[@]} > 0)) || fail "Compose reports no images."
 # Require the image references to match those captured at preparation time.
 printf '%s\n' "${configured_images[@]}" | sort -u > "$ROOT/.configured-images.tmp"

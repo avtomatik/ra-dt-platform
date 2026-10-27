@@ -22,9 +22,10 @@ sudo ./offline/package.sh
 Output: `release/radp-offline.zip`. Keep generated ZIPs, `.deb` files, image
 archives, and secrets out of Git. Commit the scripts, README, and `.dockerignore`.
 
-Preparation uses frozen Astra 1.7.8 base/update repositories. It downloads a
-conservative dependency closure with `apt-rdepends`; this can include extra
-alternatives. It then installs the pinned Docker/Compose versions on the
+Preparation uses frozen Astra 1.7.8 base/update repositories. It resolves a
+conservative dependency closure with APT's built-in recursive dependency query
+(no `apt-rdepends` helper package is required); alternative dependencies may
+add extra packages. It then installs the pinned Docker/Compose versions on the
 preparation VM, builds RADP, pulls PostgreSQL 17 and Ofelia, and tags them to
 match the image references in Compose. If the actual Compose references contain
 another image, the script stops rather than guessing where to obtain it.

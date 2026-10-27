@@ -48,18 +48,20 @@ APT_OPTS=(
   -o "Dir::State::lists=$APT_LISTS"
   -o "Acquire::Retries=2"
 )
+# Resolve candidates strictly from the frozen repository metadata, not from
+# packages installed on the preparation VM. Otherwise an installed newer
+# Debian package (e.g. libcurl4 from bookworm) can be selected and cannot be
+# downloaded from the Astra 1.7.8 frozen repositories.
+CACHE_OPTS=("${APT_OPTS[@]}" -o "Dir::State::status=/dev/null")
 apt-get "${APT_OPTS[@]}" update
 
-engine_candidate="$(apt-cache "${APT_OPTS[@]}" policy "$ENGINE_PKG" | awk '/Candidate:/ {print $2; exit}')"
-compose_candidate="$(apt-cache "${APT_OPTS[@]}" policy "$COMPOSE_PKG" | awk '/Candidate:/ {print $2; exit}')"
+engine_candidate="$(apt-cache "${CACHE_OPTS[@]}" policy "$ENGINE_PKG" | awk '/Candidate:/ {print $2}')"
+compose_candidate="$(apt-cache "${CACHE_OPTS[@]}" policy "$COMPOSE_PKG" | awk '/Candidate:/ {print $2}')"
 [[ "$engine_candidate" == "$ENGINE_VER" ]] || fail "$ENGINE_PKG candidate is '$engine_candidate', expected pinned $ENGINE_VER from frozen Astra 1.7.8."
 [[ "$compose_candidate" == "$COMPOSE_VER" ]] || fail "$COMPOSE_PKG candidate is '$compose_candidate', expected pinned $COMPOSE_VER from frozen Astra 1.7.8."
 
-# Install apt-rdepends on the builder if needed; it is a preparation helper,
-# not a runtime dependency. It is deliberately not included as a target package.
-if ! command -v apt-rdepends >/dev/null 2>&1; then
-  DEBIAN_FRONTEND=noninteractive apt-get "${APT_OPTS[@]}" install -y apt-rdepends
-fi
+# Use apt-cache's built-in recursive dependency traversal below; no helper
+# package such as apt-rdepends is required or assumed to exist in frozen repos.
 
 # Rebuild staging so stale files from a prior attempt cannot silently ship.
 rm -rf -- "$STAGE"
@@ -69,20 +71,37 @@ printf 'linux/amd64\n' > "$STAGE/target-platform.txt"
 printf 'engine_package=%s\nengine_version=%s\ncompose_package=%s\ncompose_version=%s\n' \
   "$ENGINE_PKG" "$ENGINE_VER" "$COMPOSE_PKG" "$COMPOSE_VER" > "$STAGE/os-packages.txt"
 
-# Capture a conservative transitive dependency closure, including alternatives.
-# apt-rdepends can list virtual packages and alternative providers; only packages
-# with a real candidate are downloaded. This intentionally may include extra
-# dependency alternatives, which is safer than omitting a dependency.
+# Capture a conservative transitive dependency closure, including alternatives
+# and concrete providers that apt-cache lists beneath virtual dependencies.
+# Only packages with a real candidate are downloaded; this may include extras.
 printf '\nResolving dependency package names from frozen Astra repositories...\n'
-apt-rdepends --follow=DEPENDS,PREDEPENDS "$ENGINE_PKG" "$COMPOSE_PKG" openssl ca-certificates \
-  2>/dev/null | awk '/^[[:alnum:]][[:alnum:]+.-]*(:[[:alnum:]-]+)?$/ {sub(/:.*/, "", $1); print $1}' \
-  | sort -u > "$STAGE/dependency-package-names.txt"
+apt-cache "${CACHE_OPTS[@]}" --recurse --important depends "$ENGINE_PKG" "$COMPOSE_PKG" openssl ca-certificates \
+  | awk '
+      /^[[:alnum:]][[:alnum:]+.-]*(:[[:alnum:]-]+)?$/ {
+        pkg = $0
+        sub(/:.*/, "", pkg)
+        print pkg
+        next
+      }
+      /^[[:space:]]*(PreDepends|Depends):/ {
+        line = $0
+        sub(/^[[:space:]]*(PreDepends|Depends):[[:space:]]*/, "", line)
+        n = split(line, alternatives, /\|/)
+        for (i = 1; i <= n; i++) {
+          dep = alternatives[i]
+          sub(/^[[:space:]<]+/, "", dep)
+          sub(/[[:space:]>(].*$/, "", dep)
+          sub(/:.*/, "", dep)
+          if (dep ~ /^[[:alnum:]][[:alnum:]+.-]*$/) print dep
+        }
+      }
+    ' | sort -u > "$STAGE/dependency-package-names.txt"
 printf '%s\n' "$ENGINE_PKG" "$COMPOSE_PKG" openssl ca-certificates >> "$STAGE/dependency-package-names.txt"
 sort -u -o "$STAGE/dependency-package-names.txt" "$STAGE/dependency-package-names.txt"
 
 while IFS= read -r pkg; do
   [[ -n "$pkg" ]] || continue
-  candidate="$(apt-cache "${APT_OPTS[@]}" policy "$pkg" 2>/dev/null | awk '/Candidate:/ {print $2; exit}')"
+  candidate="$(apt-cache "${CACHE_OPTS[@]}" policy "$pkg" 2>/dev/null | awk '/Candidate:/ {print $2}')"
   [[ -n "$candidate" && "$candidate" != "(none)" ]] || continue
   # Download every candidate even if already installed on the builder.
   (cd "$DEBS" && apt-get "${APT_OPTS[@]}" download "$pkg=$candidate") \
@@ -110,7 +129,12 @@ printf '%s\n' "$compose_version" > "$STAGE/compose-version.txt"
 # Compose v1 does not support --pull never. Validate config and export every
 # image named by the real Compose file, rather than assuming service/container names.
 (cd "$ROOT" && docker-compose config -q) || fail "docker-compose config failed. Fix the project's Compose/.env first."
-mapfile -t compose_images < <(cd "$ROOT" && docker-compose config --images | sort -u)
+# Compose v1.29.2 has no `config --images` option. Read the normalized
+# Compose YAML instead (one image: field per service).
+mapfile -t compose_images < <(
+  cd "$ROOT"
+  docker-compose config | awk '$1 == "image:" {print $2}' | sort -u
+)
 ((${#compose_images[@]} > 0)) || fail "Compose config returned no images."
 printf '%s\n' "${compose_images[@]}" > "$STAGE/compose-images.txt"
 
