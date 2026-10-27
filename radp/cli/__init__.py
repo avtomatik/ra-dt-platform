@@ -145,6 +145,13 @@ def build_parser() -> argparse.ArgumentParser:
     sync_run = sync_commands.add_parser(
         "run", help="Synchronize certificates from the RA."
     )
+    sync_run.add_argument(
+        "--certificate-folder",
+        help=(
+            "RA certificate folder to synchronize; overrides "
+            "RADP_REMOTE_RA__CERTIFICATE_FOLDER from the environment or .env."
+        ),
+    )
     sync_run.set_defaults(handler=synchronize)
 
     serve_parser = commands.add_parser(

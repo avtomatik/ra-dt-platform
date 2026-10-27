@@ -57,7 +57,17 @@ class FakeFactory:
 
 
 def summary(certificate_id, status):
-    return CertificateSummaryDTO(id=certificate_id, status=status)
+    return CertificateSummaryDTO(
+        id=certificate_id,
+        nameAttributes={"2.5.4.3": "test-certificate"},
+        serialNumber="01",
+        thumbprint="test-thumbprint",
+        notBefore=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        notAfter=datetime(2036, 1, 1, tzinfo=timezone.utc),
+        keyNotAfter=datetime(2030, 1, 1, tzinfo=timezone.utc),
+        createdWhen=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        status=status,
+    )
 
 
 @pytest.mark.asyncio

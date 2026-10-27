@@ -114,12 +114,14 @@ uv run python -m radp db inspect --table certificates --limit 10
 uv run python -m radp db latest-certificates --limit 20
 uv run python -m radp db oids --limit 20
 uv run python -m radp sync run
+# Optional one-off override; .env remains unchanged
+uv run python -m radp sync run --certificate-folder "production folder/2026"
 uv run python -m radp oid export
 uv run python -m radp export excel
 uv run python -m radp serve --host 127.0.0.1 --port 9000
 ```
 
-Для подключения CLI с хоста к контейнерной БД в настройках приложения должен использоваться адрес `localhost` и опубликованный порт PostgreSQL. Если конфигурация не загружает `.env` автоматически, передайте его явно, например `uv run --env-file .env python -m radp tables`. Команды `drop` и `reset` удаляют данные/схему — используйте их только осознанно.
+При запуске CLI с хоста настройте адрес PostgreSQL на `localhost` и используйте только если порт БД намеренно опубликован в вашем локальном Compose override. Базовый Compose должен держать PostgreSQL внутри приватной сети Compose. Если конфигурация не загружает `.env` автоматически, передайте его явно, например `uv run --env-file .env python -m radp tables`. Команды `drop` и `reset` удаляют данные/схему — используйте их только осознанно.
 
 ## Запуск через Docker Compose
 
@@ -129,7 +131,7 @@ docker compose ps
 docker compose logs -f platform scheduler
 ```
 
-Compose поднимает PostgreSQL, выполняет одноразовый этап создания схемы, запускает API и отдельный планировщик Ofelia. Ofelia запускает команду синхронизации ежедневно в 02:00 по времени контейнера: `python -m radp sync run`. Чтобы изменить расписание, поправьте метку `ofelia.job-exec.sync.schedule` в `docker-compose.yml`. Планировщик внешний по отношению к приложению: внутри RADP не требуется APScheduler.
+Compose поднимает PostgreSQL, выполняет одноразовый этап создания схемы, запускает API и отдельный планировщик Ofelia. Ofelia запускает команду синхронизации ежедневно в 00:00 по времени контейнера: `python -m radp sync run`. Чтобы изменить расписание, поправьте метку `ofelia.job-exec.sync.schedule` в `docker-compose.yml`. Планировщик внешний по отношению к приложению: внутри RADP не требуется APScheduler. Ofelia получает доступ к Docker API через `/var/run/docker.sock`; суффикс `:ro` делает read-only только само монтирование, но **не** превращает Docker API в read-only. Сохраняйте этот вариант только при осознанном принятии риска оператором системы: ограничьте доступ к хосту и Docker, используйте доверенный и закреплённый образ планировщика, не публикуйте Docker API по TCP и регулярно проверяйте состав запускаемых задач. Изолированная/air-gapped сеть снижает внешнюю экспозицию, но не устраняет риск компрометации хоста или контейнера. Процедура и поля согласования остаточного риска: [`docs/security/docker-socket-risk-acceptance.md`](docs/security/docker-socket-risk-acceptance.md).
 
 Остановка контейнеров без удаления данных:
 
@@ -164,7 +166,7 @@ docker compose down
 | `python -m radp db tables` / `python -m radp tables` | Список таблиц |
 | `python -m radp db stats` | Число строк в таблицах |
 | `python -m radp db inspect --table TABLE` | Первые строки таблицы |
-| `python -m radp sync run` | Выполнить синхронизацию |
+| `python -m radp sync run [--certificate-folder FOLDER]` | Выполнить синхронизацию; необязательный параметр переопределяет папку из `.env` только для этого запуска |
 | `python -m radp oid export` | Экспортировать справочник OID из БД в seed JSON |
 | `python -m radp export excel` | Создать XLSX-отчёт |
 | `python -m radp export flush` | Вручную удалить XLSX-файлы из `data/exports` (не запускается при старте) |
