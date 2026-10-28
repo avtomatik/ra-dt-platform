@@ -98,7 +98,7 @@ class DoctorService:
 
     async def _check_ra(self) -> CheckResult:
         try:
-            page = await self.client.list_first_page()
+            page = await self.client.list_first_summary_page()
             return CheckResult(
                 "RA API",
                 True,

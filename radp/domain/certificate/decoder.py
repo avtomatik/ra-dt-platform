@@ -2,11 +2,13 @@ import base64
 
 from cryptography import x509
 
-from radp.infrastructure.ra_api.dto.certificate import CertificateDTO
+from radp.infrastructure.ra_api.dto.certificate import CertificateDetailDTO
 
 
 class CertificateDecoder:
-    def decode(self, dto: CertificateDTO) -> tuple[bytes, x509.Certificate]:
+    def decode(
+        self, dto: CertificateDetailDTO
+    ) -> tuple[bytes, x509.Certificate]:
         if dto.raw_certificate is None:
             raise ValueError(
                 "RA certificate response does not contain rawCertificate"

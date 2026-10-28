@@ -97,7 +97,6 @@ celerybeat-schedule
 *.sage.py
 
 # Environments
-.env
 .venv
 env/
 venv/
@@ -127,7 +126,6 @@ dmypy.json
 # Project Specifics
 ###############################################################################
 logs/
-exports/*
 
 *.pem
 *.pfx
@@ -146,9 +144,20 @@ config.private.*
 .vscode/
 
 ###############################################################################
-# SQLite databases
+# Secrets and local configuration
 ###############################################################################
-**/*.sqlite
+.env
+.env.*
+!.env.example
+
+###############################################################################
+# Generated offline bundles
+###############################################################################
+offline/build/
+offline/debs/
+offline/dist/
+offline/images/
+release/
 
 ###############################################################################
 # Data exports

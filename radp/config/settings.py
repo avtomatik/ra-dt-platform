@@ -15,6 +15,7 @@ class TransportSettings(BaseModel):
 
 class RemoteRaSettings(BaseModel):
     base_url: HttpUrl
+    certificate_folder: str
     root: str = "/api/ra"
 
 

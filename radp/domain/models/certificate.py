@@ -1,4 +1,5 @@
 from datetime import datetime
+from enum import StrEnum
 from uuid import UUID
 
 from pydantic import Field
@@ -8,8 +9,25 @@ from .metadata import CertificateMetadata
 from .x509 import X509Certificate
 
 
+class CertificateStatus(StrEnum):
+    """Canonical status values used by the domain and persistence layer."""
+
+    VALID = "VALID"
+    REVOKED = "REVOKED"
+    EXPIRED = "EXPIRED"
+    UNKNOWN = "UNKNOWN"
+
+    @classmethod
+    def _missing_(cls, value: object):
+        # The RA API currently returns values such as "Valid". Normalize
+        # casing and surrounding whitespace at the DTO/domain boundary.
+        if isinstance(value, str):
+            return cls._value2member_map_.get(value.strip().upper())
+        return None
+
+
 class CertificateLifecycle(DomainModel):
-    status: str
+    status: CertificateStatus
     revoked_when: datetime | None = None
     revocation_reason: str | None = None
 
@@ -19,7 +37,9 @@ class Certificate(DomainModel):
     metadata: CertificateMetadata
     x509: X509Certificate
     lifecycle: CertificateLifecycle = Field(
-        default_factory=lambda: CertificateLifecycle(status="UNKNOWN")
+        default_factory=lambda: CertificateLifecycle(
+            status=CertificateStatus.UNKNOWN
+        )
     )
 
     def immutable_payload(self) -> dict:

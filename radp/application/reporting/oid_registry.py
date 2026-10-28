@@ -28,7 +28,8 @@ class OIDRegistryExporter:
             suffix=".tmp",
             delete=False,
         ) as handle:
-            temporary_path = Path(handle.name)
             handle.write(payload)
+            handle.flush()
+            temporary_path = Path(handle.name)
         temporary_path.replace(target)
         return len(definitions)

@@ -4,4 +4,9 @@ import uvicorn
 
 
 def serve(args: argparse.Namespace) -> None:
-    uvicorn.run("radp.interfaces.api.main:app", host=args.host, port=args.port)
+    uvicorn.run(
+        "radp.interfaces.api.main:app",
+        host=args.host,
+        port=args.port,
+        log_config=None,
+    )

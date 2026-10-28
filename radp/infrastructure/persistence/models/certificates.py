@@ -29,7 +29,7 @@ class CertificateRecord(Base):
     def from_certificate(cls, certificate) -> "CertificateRecord":
         return cls(
             id=certificate.certificate_id,
-            status=certificate.lifecycle.status,
+            status=certificate.lifecycle.status.value,
             revoked_when=certificate.lifecycle.revoked_when,
             revocation_reason=certificate.lifecycle.revocation_reason,
             payload=certificate.immutable_payload(),

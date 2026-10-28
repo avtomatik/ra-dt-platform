@@ -1,10 +1,12 @@
+from collections.abc import Sequence
 from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import select, update
 from sqlalchemy.engine import Engine
 
-from radp.domain.models.certificate import Certificate, CertificateLifecycle
+from radp.domain.models.certificate import (Certificate, CertificateLifecycle,
+                                            CertificateStatus)
 from radp.infrastructure.persistence.models.certificates import \
     CertificateRecord
 
@@ -33,6 +35,29 @@ class CertificateRepository:
             row = connection.execute(statement).mappings().one_or_none()
         return self._hydrate(row) if row else None
 
+    def get_lifecycles(
+        self, certificate_ids: Sequence[UUID]
+    ) -> dict[UUID, CertificateLifecycle]:
+        """Fetch only lifecycle columns for all IDs in one database query."""
+        if not certificate_ids:
+            return {}
+        with self._engine.connect() as connection:
+            statement = select(
+                CertificateRecord.id,
+                CertificateRecord.status,
+                CertificateRecord.revoked_when,
+                CertificateRecord.revocation_reason,
+            ).where(CertificateRecord.id.in_(certificate_ids))
+            rows = connection.execute(statement).mappings().all()
+        return {
+            row["id"]: CertificateLifecycle(
+                status=row["status"],
+                revoked_when=row["revoked_when"],
+                revocation_reason=row["revocation_reason"],
+            )
+            for row in rows
+        }
+
     def save(self, certificate: Certificate) -> None:
         record = CertificateRecord.from_certificate(certificate)
         with self._engine.begin() as connection:
@@ -50,7 +75,7 @@ class CertificateRepository:
         self,
         certificate_id: UUID,
         *,
-        status: str,
+        status: CertificateStatus,
         revoked_when: datetime | None,
         revocation_reason: str | None,
     ) -> None:
@@ -59,7 +84,7 @@ class CertificateRepository:
                 update(CertificateRecord)
                 .where(CertificateRecord.id == certificate_id)
                 .values(
-                    status=status,
+                    status=status.value,
                     revoked_when=revoked_when,
                     revocation_reason=revocation_reason,
                 )

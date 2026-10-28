@@ -28,7 +28,7 @@ class HTTPTransport:
             params=params,
         )
         async with httpx2.AsyncClient(timeout=self.TIMEOUT_SECONDS) as client:
-            response = await client.get(url, params=params, headers=headers)
+            response = await client.get(url, headers=headers)
         try:
             parsed = response.json()
         except ValueError:
