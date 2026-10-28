@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends
 
-from radp.bootstrap.runtime import get_runtime
-from radp.runtime import Runtime
+from radp.bootstrap.container import Container
+from radp.bootstrap.runtime import get_container
 
 router = APIRouter(prefix="/health", tags=["health"])
 
 
 @router.get("")
-def health(runtime: Runtime = Depends(get_runtime)):
+def health(runtime: Container = Depends(get_container)):
     settings = runtime.settings
     tables = runtime.database.list_tables()
     return {

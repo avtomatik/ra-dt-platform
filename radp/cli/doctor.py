@@ -3,7 +3,7 @@ import asyncio
 import logging
 
 from radp.application.doctor.service import CheckResult
-from radp.bootstrap.runtime import get_runtime
+from radp.bootstrap.runtime import get_container
 from radp.config.settings import Settings
 
 logger = logging.getLogger(__name__)
@@ -17,7 +17,7 @@ def doctor(_args: argparse.Namespace) -> int:
         return 1
     logger.info("configuration: OK - settings loaded")
     try:
-        runtime = get_runtime()
+        runtime = get_container()
         results = asyncio.run(runtime.doctor.run())
     except Exception as exc:
         logger.error("runtime: FAIL - %s", exc)

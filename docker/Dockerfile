@@ -27,7 +27,7 @@ RUN mkdir -p /app/data/exports
 EXPOSE 9000
 
 HEALTHCHECK \
-    --interval=1h \
+    --interval=30m \
     --timeout=10s \
     --start-period=30s \
     --retries=3 \

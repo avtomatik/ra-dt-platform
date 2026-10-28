@@ -5,44 +5,44 @@ from decimal import Decimal
 from enum import Enum
 from uuid import UUID
 
-from radp.bootstrap.runtime import get_runtime
+from radp.bootstrap.runtime import get_container
 
 
 def create(_args: argparse.Namespace) -> None:
-    get_runtime().database.create()
+    get_container().database.create()
 
 
 def drop(_args: argparse.Namespace) -> None:
-    get_runtime().database.drop()
+    get_container().database.drop()
 
 
 def reset(_args: argparse.Namespace) -> None:
-    get_runtime().database.reset()
+    get_container().database.reset()
 
 
 def tables(_args: argparse.Namespace) -> None:
-    for table in get_runtime().database.list_tables():
+    for table in get_container().database.list_tables():
         print(table)
 
 
 def stats(_args: argparse.Namespace) -> None:
-    inspection = get_runtime().database
+    inspection = get_container().database
     for table in inspection.list_tables():
         print(f"{table}: {inspection.row_count(table)}")
 
 
 def inspect_table(args: argparse.Namespace) -> None:
-    rows = get_runtime().database.first_rows(args.table, args.limit)
+    rows = get_container().database.first_rows(args.table, args.limit)
     _print_json(rows)
 
 
 def latest_certificates(args: argparse.Namespace) -> None:
-    rows = get_runtime().database.latest_certificates(args.limit)
+    rows = get_container().database.latest_certificates(args.limit)
     _print_json(rows)
 
 
 def oid_registry(args: argparse.Namespace) -> None:
-    rows = get_runtime().database.oid_rows(args.limit)
+    rows = get_container().database.oid_rows(args.limit)
     _print_json(rows)
 
 
