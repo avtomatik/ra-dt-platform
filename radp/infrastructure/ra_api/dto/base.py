@@ -1,7 +1,11 @@
 from pydantic import BaseModel, ConfigDict
+from pydantic.alias_generators import to_camel
 
 
 class DTOModel(BaseModel):
     model_config = ConfigDict(
-        populate_by_name=True, extra="ignore", from_attributes=True
+        alias_generator=to_camel,
+        validate_by_alias=True,
+        validate_by_name=True,
+        from_attributes=True,
     )

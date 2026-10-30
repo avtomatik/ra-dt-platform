@@ -93,8 +93,8 @@ uv sync
 Настройки читаются через Pydantic Settings и переменные окружения с префиксом `RADP_`. Обязательно задайте `RADP_REMOTE_RA__CERTIFICATE_FOLDER`: это имя каталога RA передаётся параметром `folder` при запросе `GET /api/ra/certificates?folder=...`; значение не зашито в код. Compose-файл использует следующие переменные для создания PostgreSQL:
 
 ```dotenv
-RADP_DATABASE__NAME=radp
-RADP_DATABASE__USER=radp
+RADP_DATABASE__DATABASE=radp
+RADP_DATABASE__USERNAME=radp
 RADP_DATABASE__PASSWORD=replace-with-a-local-password
 ```
 
@@ -150,8 +150,8 @@ docker compose down
 | Driver | PostgreSQL |
 | Host | `localhost` |
 | Port | `5432` |
-| Database | значение `RADP_DATABASE__NAME` из `.env` |
-| Username | значение `RADP_DATABASE__USER` из `.env` |
+| Database | значение `RADP_DATABASE__DATABASE` из `.env` |
+| Username | значение `RADP_DATABASE__USERNAME` из `.env` |
 | Password | значение `RADP_DATABASE__PASSWORD` из `.env` |
 
 В DBeaver выберите **New Database Connection → PostgreSQL**, заполните поля выше, нажмите **Test Connection**, затем **Finish**. После старта Compose можно проверить доступность командой `docker compose ps`; логи PostgreSQL доступны через `docker compose logs -f postgres`. Если порт `5432` уже занят на Mac, измените левую часть публикации в Compose, например `15432:5432`, и используйте `localhost:15432` в DBeaver. Не публикуйте PostgreSQL наружу в недоверенной сети; для локальной разработки доступ к `localhost` предпочтительнее.

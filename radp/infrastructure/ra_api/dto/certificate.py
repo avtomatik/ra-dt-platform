@@ -2,8 +2,6 @@ from datetime import datetime
 from typing import Any, Mapping
 from uuid import UUID
 
-from pydantic import Field
-
 from radp.domain.models.certificate import CertificateStatus
 
 from .base import DTOModel
@@ -11,15 +9,13 @@ from .base import DTOModel
 
 class CertificateBaseDTO(DTOModel):
     id: UUID
-    name_attributes: Mapping[str, str] = Field(
-        validation_alias="nameAttributes"
-    )
-    serial_number: str = Field(validation_alias="serialNumber")
+    name_attributes: Mapping[str, str]
+    serial_number: str
     thumbprint: str
-    not_before: datetime = Field(validation_alias="notBefore")
-    not_after: datetime = Field(validation_alias="notAfter")
-    key_not_after: datetime = Field(validation_alias="keyNotAfter")
-    created_when: datetime = Field(validation_alias="createdWhen")
+    not_before: datetime
+    not_after: datetime
+    key_not_after: datetime
+    created_when: datetime
     status: CertificateStatus
 
 
@@ -27,30 +23,20 @@ class CertificateSummaryDTO(CertificateBaseDTO): ...
 
 
 class CertificateDetailDTO(CertificateSummaryDTO):
-    cert_request_id: str | None = Field(None, validation_alias="certRequestId")
+    cert_request_id: str | None = None
     subject: str | None = None
     issuer: str | None = None
-    user_id: UUID | None = Field(None, validation_alias="userId")
+    user_id: UUID | None = None
     version: int = 3
-    public_key: str | None = Field(None, validation_alias="publicKey")
-    public_key_parameters: str | None = Field(
-        None, validation_alias="publicKeyParameters"
-    )
-    public_key_oid: str | None = Field(None, validation_alias="publicKeyOid")
-    public_key_oid_description: str | None = Field(
-        None, validation_alias="publicKeyOidDescription"
-    )
+    public_key: str | None = None
+    public_key_parameters: str | None = None
+    public_key_oid: str | None = None
+    public_key_oid_description: str | None = None
     extensions: list[Mapping[str, Any]] | None = None
     signature: str | None = None
-    signature_oid: str | None = Field(None, validation_alias="signatureOid")
-    signature_oid_description: str | None = Field(
-        None, validation_alias="signatureOidDescription"
-    )
-    raw_certificate: bytes | None = Field(
-        None, validation_alias="rawCertificate"
-    )
-    revocation_reason: str | None = Field(
-        None, validation_alias="revocationReason"
-    )
-    revoked_when: datetime | None = Field(None, validation_alias="revokedWhen")
+    signature_oid: str | None = None
+    signature_oid_description: str | None = None
+    raw_certificate: bytes | None = None
+    revocation_reason: str | None = None
+    revoked_when: datetime | None = None
     folder: str | None = None

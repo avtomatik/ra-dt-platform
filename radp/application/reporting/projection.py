@@ -12,7 +12,7 @@ class CertificateProjection:
         return CertificateInventoryRow(
             ogrn=subject.get(constants.OGRN),
             organization_name=subject.get(constants.O),
-            guid=subject.get(constants.GUID),
+            gid=subject.get(constants.GUID),
             surname=subject.get(constants.SN),
             given_name=subject.get(constants.GIVEN_NAME),
             organizational_unit_name=subject.get(constants.OU),

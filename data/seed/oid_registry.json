@@ -48,6 +48,14 @@
     "enabled": true
   },
   {
+    "oid": "1.2.643.2.2.19",
+    "name": "GOST R 34.10-2001",
+    "short_name": "GOST_R3410_2001",
+    "category": "RUS_IDENTIFIER",
+    "description": "Russian cryptographic public-key algorithm identifier. Identifies GOST R 34.10-2001 public keys in the SubjectPublicKeyInfo structure. The algorithm supports digital signatures and VKO key derivation.",
+    "enabled": true
+  },
+  {
     "oid": "1.2.643.3.131.1.1",
     "name": "INN",
     "short_name": "INN",
@@ -112,6 +120,14 @@
     "enabled": true
   },
   {
+    "oid": "1.3.6.1.4.1.311.21.10",
+    "name": "Microsoft Application Policies",
+    "short_name": "APPLICATION_CERT_POLICIES",
+    "category": "MICROSOFT",
+    "description": "Microsoft-specific X.509 certificate extension containing application-policy identifiers (OIDs) used to determine the permitted uses of a certificate.",
+    "enabled": true
+  },
+  {
     "oid": "1.3.6.1.4.1.311.21.7",
     "name": "Certificate Template",
     "short_name": "CERTIFICATE_TEMPLATE",
@@ -165,6 +181,14 @@
     "short_name": "PRIVATE_KEY_USAGE_PERIOD",
     "category": "X_509_V3_EXTENSIONS",
     "description": null,
+    "enabled": true
+  },
+  {
+    "oid": "2.5.29.17",
+    "name": "Subject Alternative Name",
+    "short_name": "SUBJECT_ALT_NAME",
+    "category": "X_509_V3_EXTENSIONS",
+    "description": "X.509 certificate extension that associates additional identities, such as DNS names, IP addresses, email addresses, URIs, and directory names, with the certificate subject. It can supplement or replace the identity in the subject field.",
     "enabled": true
   },
   {

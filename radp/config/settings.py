@@ -1,8 +1,8 @@
 from pathlib import Path
-from urllib.parse import quote
 
 from pydantic import BaseModel, HttpUrl, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy import URL
 
 from .enums import TransportMode
 
@@ -20,20 +20,23 @@ class RemoteRaSettings(BaseModel):
 
 
 class DatabaseSettings(BaseModel):
-    driver: str = "postgresql"
     host: str
     port: int = 5432
-    name: str
-    user: str
+    database: str
+    username: str
     password: SecretStr
     connect_timeout: int = 5
 
     @property
-    def url(self) -> str:
-        name = quote(self.name, safe="")
-        user = quote(self.user, safe="")
-        password = quote(self.password.get_secret_value(), safe="")
-        return f"postgresql+psycopg://{user}:{password}@{self.host}:{self.port}/{name}"
+    def url(self) -> URL:
+        return URL.create(
+            drivername="postgresql+psycopg",
+            username=self.username,
+            password=self.password.get_secret_value(),
+            host=self.host,
+            port=self.port,
+            database=self.database,
+        )
 
 
 class Settings(BaseSettings):
@@ -45,7 +48,6 @@ class Settings(BaseSettings):
         env_nested_delimiter="__",
         case_sensitive=False,
     )
-
     transport: TransportSettings
     remote_ra: RemoteRaSettings
     database: DatabaseSettings

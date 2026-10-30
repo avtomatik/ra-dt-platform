@@ -13,5 +13,5 @@ def create_transport(settings: Settings):
             return HTTPTransport(settings)
         case _:
             raise ValueError(
-                f"Unsupported transport: {settings.transport.mode}"
+                f"Unsupported transport: {settings.transport.mode.value}"
             )

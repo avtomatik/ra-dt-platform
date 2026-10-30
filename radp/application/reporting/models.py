@@ -7,7 +7,7 @@ from pydantic import BaseModel
 class CertificateInventoryRow(BaseModel):
     ogrn: str | None
     organization_name: str | None
-    guid: str | None
+    gid: str | None
     surname: str | None
     given_name: str | None
     organizational_unit_name: str | None

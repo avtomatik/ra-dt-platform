@@ -12,10 +12,10 @@ def health(runtime: Container = Depends(get_container)):
     tables = runtime.database.list_tables()
     return {
         "status": "ok",
-        "transport_mode": settings.transport.mode,
+        "transport_mode": settings.transport.mode.value,
         "api_base_url": str(settings.remote_ra.base_url),
         "curl_path": str(settings.transport.curl_path),
         "cert_thumbprint_set": bool(settings.transport.cert_thumbprint),
-        "database": settings.database.driver,
+        "database": settings.database.database,
         "database_tables": tables,
     }
