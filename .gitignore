@@ -16,6 +16,7 @@ eggs/
 .eggs/
 lib/
 !offline/lib
+!ops/lib
 lib64/
 parts/
 sdist/

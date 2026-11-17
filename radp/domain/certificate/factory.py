@@ -129,6 +129,14 @@ class CertificateFactory:
             return result
         for extension in extensions:
             registry = self._resolve_oid(extension.oid.dotted_string)
+            template_oid = None
+            template_name = None
+            if isinstance(extension.value, x509.MSCertificateTemplate):
+                template_oid = extension.value.template_id.dotted_string
+                template_definition = self._resolve_oid(template_oid)
+                template_name = (
+                    template_definition.name or template_definition.description
+                )
             result.append(
                 Extension(
                     oid=extension.oid.dotted_string,
@@ -136,6 +144,8 @@ class CertificateFactory:
                     name=registry.name if registry else None,
                     critical=extension.critical,
                     value=str(extension.value),
+                    template_oid=template_oid,
+                    template_name=template_name,
                 )
             )
         return result

@@ -1,28 +1,31 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 
+from radp.application.reporting.models import CertificateReportFilters
 from radp.bootstrap.container import Container
 from radp.bootstrap.runtime import get_container
+from radp.config.paths import TEMPLATE_DIR
 
 router = APIRouter(prefix="/web", tags=["web"])
+jinja_env = Environment(
+    loader=FileSystemLoader(str(TEMPLATE_DIR)),
+    autoescape=select_autoescape(["html", "xml"]),
+    cache_size=0,
+)
 
 
 @router.get("", response_class=HTMLResponse)
-async def home(runtime: Container = Depends(get_container)):
-    page = await runtime.client.list_first_summary_page()
-    page_items = page.items
-    html = f"""
-    <html>
-        <head><title>RADP Platform</title></head>
-        <body>
-            <h1>Перечень первых {len(page_items)} сертификатов</h1>
-            <ul>
-    """
-    for item in page_items:
-        html += f"<li>{item.id} ({item.serial_number}): {item.name_attributes.get('commonName')}</li>"
-    html += """
-            </ul>
-        </body>
-    </html>
-    """
-    return html
+def home(request: Request, runtime: Container = Depends(get_container)):
+    """Render the local PostgreSQL inventory; do not call the upstream RA."""
+    filters = CertificateReportFilters()
+    items = runtime.reporting.project_first(filters=filters)
+    template = jinja_env.get_template("certificates.html")
+    html = template.render(
+        request=request,
+        certificate_report_rows=items,
+        columns=runtime.reporting.columns,
+        selected_status="ALL",
+        gid=None,
+    )
+    return HTMLResponse(content=html)

@@ -1,7 +1,7 @@
 import argparse
 
 from radp.config.logging import setup_logging
-from radp.config.settings import Settings
+from radp.config.settings import get_settings
 
 from .bootstrap import bootstrap
 from .database import (create, drop, inspect_table, latest_certificates,
@@ -11,6 +11,15 @@ from .export import excel, flush
 from .oid import export_registry, sync_registry
 from .serve import serve
 from .synchronize import synchronize
+
+
+def _parse_certificate_folders(value: str) -> tuple[str, ...]:
+    folders = tuple(item.strip() for item in value.split(","))
+    if not folders or any(not folder for folder in folders):
+        raise argparse.ArgumentTypeError(
+            "Provide one or more non-empty comma-separated folder names."
+        )
+    return tuple(dict.fromkeys(folders))
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -146,10 +155,11 @@ def build_parser() -> argparse.ArgumentParser:
         "run", help="Synchronize certificates from the RA."
     )
     sync_run.add_argument(
-        "--certificate-folder",
+        "--certificate-folders",
+        type=_parse_certificate_folders,
         help=(
-            "RA certificate folder to synchronize; overrides "
-            "RADP_REMOTE_RA__CERTIFICATE_FOLDER from the environment or .env."
+            "Comma-separated RA certificate folders to synchronize; overrides "
+            "RADP_REMOTE_RA__CERTIFICATE_FOLDERS from the environment or .env."
         ),
     )
     sync_run.set_defaults(handler=synchronize)
@@ -172,10 +182,12 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> None:
-    settings = Settings()
-    setup_logging(settings.log_level)
     parser = build_parser()
     args = parser.parse_args()
+    # Let argparse handle --help/argument errors before loading operational
+    # configuration. This keeps CLI discovery usable on an unconfigured host.
+    settings = get_settings()
+    setup_logging(settings.log_level)
     result = args.handler(args)
     if isinstance(result, int):
         raise SystemExit(result)

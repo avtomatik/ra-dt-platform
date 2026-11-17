@@ -74,7 +74,6 @@ radp/
 ├── domain/            # доменные модели и декодирование сертификатов
 ├── infrastructure/    # PostgreSQL, репозитории, RA API и transport
 ├── interfaces/api/    # FastAPI
-├── __main__.py        # python -m radp
 └── __main__.py        # python -m radp
 
 data/seed/oid_registry.json
@@ -90,7 +89,7 @@ docker-compose.yml
 uv sync
 ```
 
-Настройки читаются через Pydantic Settings и переменные окружения с префиксом `RADP_`. Обязательно задайте `RADP_REMOTE_RA__CERTIFICATE_FOLDER`: это имя каталога RA передаётся параметром `folder` при запросе `GET /api/ra/certificates?folder=...`; значение не зашито в код. Compose-файл использует следующие переменные для создания PostgreSQL:
+Настройки читаются через Pydantic Settings и переменные окружения с префиксом `RADP_`. Обязательно задайте `RADP_REMOTE_RA__CERTIFICATE_FOLDERS`: это список каталогов RA, разделённых запятыми. Каждый каталог передаётся отдельным запросом `GET /api/ra/certificates?folder=...`; каждый каталог синхронизируется независимо. Для одного каталога укажите одно значение, для нескольких — `folder1,folder2`. Compose-файл использует следующие переменные для создания PostgreSQL:
 
 ```dotenv
 RADP_DATABASE__DATABASE=radp
@@ -99,6 +98,27 @@ RADP_DATABASE__PASSWORD=replace-with-a-local-password
 ```
 
 Создайте локальный `.env` из актуального шаблона проекта (если он предусмотрен), задайте параметры подключения к RA API и транспорта в соответствии с настройками `radp/config/settings.py`. Не коммитьте пароли, сертификаты или thumbprint-ы. Имена переменных подключения к БД должны соответствовать модели `Settings` именно в вашем checkout.
+
+### Web и отчёты
+
+После запуска приложения откройте `http://<host>:9000/`. Главная страница содержит
+ссылки на локальный перечень сертификатов (`/web`), предпросмотр (`/export/preview`)
+и два XLSX-экспорта (`/export/certificates?status=ALL` и
+`/export/certificates?status=VALID`). Для обоих export-маршрутов доступны
+дополнительные параметры `gid` и `as_of_date=YYYY-MM-DD`. Фильтрация выполняется
+PostgreSQL; `VALID` означает статус `VALID` и `not_after` не ранее полуночи
+указанной даты UTC (по умолчанию — текущая дата UTC).
+
+По умолчанию сохраняется полный набор колонок инвентарного отчёта RADP. Для
+выбора подмножества задайте необязательную переменную, например:
+
+```dotenv
+RADP_REPORTING__PROJECTION_FIELDS=gid,common_name,serial_number,status,not_after
+```
+
+Перед предоставлением доступа пользователям ознакомьтесь с
+[`docs/security/access-control-before-user-exposure.md`](docs/security/access-control-before-user-exposure.md):
+маршруты в этой версии не реализуют прикладную аутентификацию и авторизацию.
 
 ## Запуск на хосте через `uv`
 
@@ -205,3 +225,11 @@ separate forced-refresh/reconciliation operation would be needed if that case mu
 ## Лицензия
 
 Проект распространяется в соответствии с лицензией, указанной в файле [LICENSE.md](LICENSE.md).
+
+
+## Operational documentation
+
+- [Administrator runbook](docs/operations/administrator-runbook.md)
+- [Operator guide](docs/operations/operator-guide.md)
+- [Access-control prerequisite before broader user exposure](docs/security/access-control-before-user-exposure.md)
+- [0.5.0 implementation release notes](docs/release-notes-0.5.0.md)

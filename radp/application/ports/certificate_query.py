@@ -1,6 +1,7 @@
 from typing import Protocol
 from uuid import UUID
 
+from radp.application.reporting.models import CertificateReportFilters
 from radp.domain.models.certificate import Certificate
 
 
@@ -10,3 +11,6 @@ class CertificateQueryPort(Protocol):
     def list_all(self) -> list[Certificate]: ...
     def list_first(self, limit: int = 20) -> list[Certificate]: ...
     def list_latest(self, limit: int = 20) -> list[Certificate]: ...
+    def list_for_report(
+        self, filters: CertificateReportFilters, *, limit: int | None = None
+    ) -> list[Certificate]: ...

@@ -8,10 +8,11 @@ from radp.application.orchestration.synchronization import \
     SynchronizationOrchestrator
 from radp.application.reporting.certificates import CertificateReportService
 from radp.application.reporting.oid_registry import OIDRegistryExporter
+from radp.application.reporting.projection import CertificateProjection
 from radp.application.synchronization.certificates import \
     CertificateSynchronizer
 from radp.config.paths import OID_REGISTRY_FIXTURE_PATH
-from radp.config.settings import Settings
+from radp.config.settings import Settings, get_settings
 from radp.domain.certificate.factory import CertificateFactory
 from radp.infrastructure.persistence.database import Database
 from radp.infrastructure.persistence.repositories.certificate_query import \
@@ -26,7 +27,7 @@ from radp.infrastructure.transport.factory import create_transport
 
 class Container:
     def __init__(self, settings: Settings | None = None) -> None:
-        self.settings = settings or Settings()
+        self.settings = settings or get_settings()
 
     @cached_property
     def database(self) -> Database:
@@ -51,7 +52,7 @@ class Container:
     @cached_property
     def client(self) -> RAClient:
         return RAClient(
-            self.transport, self.settings.remote_ra.certificate_folder
+            self.transport, self.settings.remote_ra.certificate_folders
         )
 
     @cached_property
@@ -80,7 +81,13 @@ class Container:
 
     @cached_property
     def reporting(self) -> CertificateReportService:
-        return CertificateReportService(self.certificate_queries)
+        projection = CertificateProjection(
+            fields=self.settings.reporting.projection_fields,
+            oid_resolver=self.oid_repository,
+        )
+        return CertificateReportService(
+            self.certificate_queries, projection=projection
+        )
 
     @cached_property
     def doctor(self) -> DoctorService:
