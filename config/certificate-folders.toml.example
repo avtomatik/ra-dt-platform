@@ -1,0 +1,3 @@
+# Copy to config/certificate-folders.toml and enable the *_FILE setting.
+# Folder order is significant: RADP synchronizes in this order.
+certificate_folders = ["default", "archive", "production folder/2026"]

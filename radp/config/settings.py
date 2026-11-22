@@ -1,9 +1,11 @@
 import logging
+import tomllib
 from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, Any
 
-from pydantic import BaseModel, Field, HttpUrl, SecretStr, field_validator
+from pydantic import (BaseModel, Field, HttpUrl, SecretStr, field_validator,
+                      model_validator)
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 from sqlalchemy import URL
 
@@ -40,13 +42,47 @@ class TransportSettings(BaseModel):
 
 class RemoteRaSettings(BaseModel):
     base_url: HttpUrl
-    certificate_folders: Annotated[tuple[str, ...], NoDecode]
+    certificate_folders: Annotated[tuple[str, ...] | None, NoDecode] = None
+    certificate_folders_file: Path | None = None
     root: str = "/api/ra"
 
     @field_validator("certificate_folders", mode="before")
     @classmethod
     def parse_certificate_folders(cls, value: Any) -> tuple[str, ...]:
         return _parse_csv_tuple(value)
+
+    @model_validator(mode="after")
+    def resolve_certificate_folders(self) -> "RemoteRaSettings":
+        # Inline environment configuration wins over the optional TOML file.
+        if self.certificate_folders is not None:
+            return self
+        if self.certificate_folders_file is None:
+            raise ValueError(
+                "Set certificate_folders or certificate_folders_file for the remote RA."
+            )
+        path = self.certificate_folders_file
+        try:
+            with path.open("rb") as stream:
+                document = tomllib.load(stream)
+        except (OSError, tomllib.TOMLDecodeError) as exc:
+            raise ValueError(
+                f"Cannot read RA certificate folders from {path}: {exc}"
+            ) from exc
+        if not isinstance(document, dict) or set(document) != {
+            "certificate_folders"
+        }:
+            raise ValueError(
+                f"Expected only a 'certificate_folders' list in {path}."
+            )
+        try:
+            self.certificate_folders = _parse_csv_tuple(
+                document["certificate_folders"]
+            )
+        except ValueError as exc:
+            raise ValueError(
+                f"Invalid RA certificate folders in {path}: {exc}"
+            ) from exc
+        return self
 
 
 class ReportingSettings(BaseModel):

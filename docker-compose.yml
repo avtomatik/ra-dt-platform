@@ -61,6 +61,7 @@ services:
         condition: service_completed_successfully
     volumes:
       - ./data:/app/data
+      - ./config:/app/config:ro
       - ./logs:/app/logs
     networks:
       - ra-network

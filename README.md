@@ -89,7 +89,12 @@ docker-compose.yml
 uv sync
 ```
 
-Настройки читаются через Pydantic Settings и переменные окружения с префиксом `RADP_`. Обязательно задайте `RADP_REMOTE_RA__CERTIFICATE_FOLDERS`: это список каталогов RA, разделённых запятыми. Каждый каталог передаётся отдельным запросом `GET /api/ra/certificates?folder=...`; каждый каталог синхронизируется независимо. Для одного каталога укажите одно значение, для нескольких — `folder1,folder2`. Compose-файл использует следующие переменные для создания PostgreSQL:
+Настройки читаются через Pydantic Settings и переменные окружения с префиксом `RADP_`. Настройте каталоги сертификатов RA **одним из двух способов**:
+
+- Для простого развёртывания: `RADP_REMOTE_RA__CERTIFICATE_FOLDERS=default,archive` в `.env`.
+- Для отдельной конфигурации: скопируйте `config/certificate-folders.toml.example` в `config/certificate-folders.toml`, отредактируйте `certificate_folders:` (список TOML), **уберите** `RADP_REMOTE_RA__CERTIFICATE_FOLDERS` из `.env` и задайте `RADP_REMOTE_RA__CERTIFICATE_FOLDERS_FILE=/app/config/certificate-folders.toml` в Docker либо путь к файлу относительно текущего каталога на хосте. `docker-compose.yml` монтирует `./config` в `/app/config` только для чтения.
+
+Если обе настройки заданы, список из `.env` имеет приоритет. При отсутствии обеих настроек приложение выдаст ошибку конфигурации. Пустые и повторяющиеся записи нормализуются либо отклоняются при запуске. Каждый каталог передаётся отдельным запросом `GET /api/ra/certificates?folder=...`; каждый каталог синхронизируется независимо. Одно значение `default` совместимо с конфигурацией RA-Emulator по умолчанию. Compose-файл использует следующие переменные для создания PostgreSQL:
 
 ```dotenv
 RADP_DATABASE__DATABASE=radp

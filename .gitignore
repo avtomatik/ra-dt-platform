@@ -170,3 +170,6 @@ data/exports/**
 # Apple Desktop Services Store
 ###############################################################################
 .DS_Store
+
+# Local RA folder selection (copy from example; never commit deployment-specific values)
+config/certificate-folders.toml

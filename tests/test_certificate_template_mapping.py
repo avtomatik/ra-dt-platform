@@ -80,8 +80,7 @@ def test_factory_extracts_v1_template_name_without_oid_catalog_lookup():
         oid=ObjectIdentifier(OID.CERTIFICATE_TEMPLATE_NAME.value),
         critical=False,
         value=x509.UnrecognizedExtension(
-            ObjectIdentifier(OID.CERTIFICATE_TEMPLATE_NAME.value),
-            encoded_name,
+            ObjectIdentifier(OID.CERTIFICATE_TEMPLATE_NAME.value), encoded_name
         ),
     )
     mapped = factory._build_extensions(
@@ -95,8 +94,7 @@ def test_legacy_v1_extension_repr_can_be_decoded_without_refresh():
     encoded_name = _der_tlv(0x30, _der_tlv(0x0C, b"Employee"))
     legacy_value = str(
         x509.UnrecognizedExtension(
-            ObjectIdentifier(OID.CERTIFICATE_TEMPLATE_NAME.value),
-            encoded_name,
+            ObjectIdentifier(OID.CERTIFICATE_TEMPLATE_NAME.value), encoded_name
         )
     )
     assert decode_legacy_template_name(legacy_value) == "Employee"
