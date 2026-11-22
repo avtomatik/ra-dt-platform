@@ -1,41 +1,43 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Перечень сертификатов — RADP</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 1.5rem; color: #182230; }
-    nav { margin-bottom: 1rem; }
-    a { color: #175cd3; }
-    .table-wrap { overflow-x: auto; }
-    table { border-collapse: collapse; width: 100%; white-space: nowrap; }
-    th, td { border: 1px solid #d0d5dd; padding: 8px; text-align: left; }
-    th { background: #f2f4f7; }
-    .muted { color: #667085; }
-  </style>
-</head>
-<body>
-  <nav><a href="/">← RADP</a></nav>
-  <h1>Перечень сертификатов</h1>
-  <p class="muted">Первые {{ certificate_report_rows|length }} записей из локальной базы. Фильтр: {{ selected_status }}{% if gid %}; GID: {{ gid }}{% endif %}.</p>
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          {% for column in columns %}<th>{{ column }}</th>{% endfor %}
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in certificate_report_rows %}
-        <tr>
-          {% for column in columns %}<td>{{ row.get(column) if row.get(column) is not none else "" }}</td>{% endfor %}
-        </tr>
-        {% else %}
-        <tr><td colspan="{{ columns|length }}">Нет записей для отображения.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</body>
-</html>
+{% extends "base.html" %}
+
+{% block title %}Перечень сертификатов — RADP{% endblock %}
+
+{% block content %}
+  <nav class="breadcrumbs" aria-label="Навигация">
+    <a href="{{ url_for('landing_page') }}">← На главную</a>
+  </nav>
+
+  <section class="page-intro" aria-labelledby="page-title">
+    <p class="eyebrow">CERTIFICATE INVENTORY</p>
+    <h1 id="page-title">Перечень сертификатов</h1>
+    <p class="lead">
+      Первые {{ certificate_report_rows|length }} записей из локальной базы.
+      Фильтр: <strong>{{ selected_status }}</strong>{% if gid %}; GID: <strong>{{ gid }}</strong>{% endif %}.
+    </p>
+  </section>
+
+  <section class="content-section" aria-label="Результаты отчёта">
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            {% for column in columns %}<th scope="col">{{ column }}</th>{% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in certificate_report_rows %}
+          <tr>
+            {% for column in columns %}
+              <td>{{ row.get(column) if row.get(column) is not none else "" }}</td>
+            {% endfor %}
+          </tr>
+          {% else %}
+          <tr>
+            <td class="empty-state" colspan="{{ columns|length }}">Нет записей для отображения.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

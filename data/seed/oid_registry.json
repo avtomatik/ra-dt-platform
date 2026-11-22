@@ -1,53 +1,5 @@
 [
   {
-    "oid": "1.2.643.100.1",
-    "name": "OGRN",
-    "short_name": "OGRN",
-    "category": "RUS_IDENTIFIER",
-    "description": "Primary State Registration Number",
-    "enabled": true
-  },
-  {
-    "oid": "1.2.643.100.111",
-    "name": null,
-    "short_name": "SIGNATURE_DEVICE",
-    "category": "RUSSIAN_CERTIFICATE_EXTENSIONS",
-    "description": null,
-    "enabled": true
-  },
-  {
-    "oid": "1.2.643.100.112",
-    "name": null,
-    "short_name": "ISSUER_SIGNATURE_AND_CA_TOOLS",
-    "category": "RUSSIAN_CERTIFICATE_EXTENSIONS",
-    "description": null,
-    "enabled": true
-  },
-  {
-    "oid": "1.2.643.100.114",
-    "name": null,
-    "short_name": "IDENTITY_VERIFICATION_METHOD",
-    "category": "RUSSIAN_CERTIFICATE_EXTENSIONS",
-    "description": null,
-    "enabled": true
-  },
-  {
-    "oid": "1.2.643.100.3",
-    "name": "SNILS",
-    "short_name": "SNILS",
-    "category": "RUS_IDENTIFIER",
-    "description": "Individual Insurance Account Number",
-    "enabled": true
-  },
-  {
-    "oid": "1.2.643.100.4",
-    "name": "Legal Entity INN",
-    "short_name": "LEGAL_ENTITY_INN",
-    "category": "RUS_IDENTIFIER",
-    "description": "Legal Entity Taxpayer Identification Number",
-    "enabled": true
-  },
-  {
     "oid": "1.2.643.2.2.19",
     "name": "GOST R 34.10-2001",
     "short_name": "GOST_R3410_2001",
@@ -96,6 +48,54 @@
     "enabled": true
   },
   {
+    "oid": "1.2.643.100.1",
+    "name": "OGRN",
+    "short_name": "OGRN",
+    "category": "RUS_IDENTIFIER",
+    "description": "Primary State Registration Number",
+    "enabled": true
+  },
+  {
+    "oid": "1.2.643.100.3",
+    "name": "SNILS",
+    "short_name": "SNILS",
+    "category": "RUS_IDENTIFIER",
+    "description": "Individual Insurance Account Number",
+    "enabled": true
+  },
+  {
+    "oid": "1.2.643.100.4",
+    "name": "Legal Entity INN",
+    "short_name": "LEGAL_ENTITY_INN",
+    "category": "RUS_IDENTIFIER",
+    "description": "Legal Entity Taxpayer Identification Number",
+    "enabled": true
+  },
+  {
+    "oid": "1.2.643.100.111",
+    "name": null,
+    "short_name": "SIGNATURE_DEVICE",
+    "category": "RUSSIAN_CERTIFICATE_EXTENSIONS",
+    "description": null,
+    "enabled": true
+  },
+  {
+    "oid": "1.2.643.100.112",
+    "name": null,
+    "short_name": "ISSUER_SIGNATURE_AND_CA_TOOLS",
+    "category": "RUSSIAN_CERTIFICATE_EXTENSIONS",
+    "description": null,
+    "enabled": true
+  },
+  {
+    "oid": "1.2.643.100.114",
+    "name": null,
+    "short_name": "IDENTITY_VERIFICATION_METHOD",
+    "category": "RUSSIAN_CERTIFICATE_EXTENSIONS",
+    "description": null,
+    "enabled": true
+  },
+  {
     "oid": "1.2.840.113549.1.9.1",
     "name": "Email Address",
     "short_name": "EMAIL_ADDRESS",
@@ -112,6 +112,14 @@
     "enabled": true
   },
   {
+    "oid": "1.3.6.1.4.1.311.20.2",
+    "name": "Microsoft Certificate Template Name",
+    "short_name": "CERTIFICATE_TEMPLATE_NAME",
+    "category": "MICROSOFT",
+    "description": "Microsoft V1 certificate-template name extension; contains the human-readable template name.",
+    "enabled": true
+  },
+  {
     "oid": "1.3.6.1.4.1.311.20.2.3",
     "name": "User Principal Name",
     "short_name": "USER_PRINCIPAL_NAME",
@@ -120,19 +128,19 @@
     "enabled": true
   },
   {
-    "oid": "1.3.6.1.4.1.311.21.10",
-    "name": "Microsoft Application Policies",
-    "short_name": "APPLICATION_CERT_POLICIES",
-    "category": "MICROSOFT",
-    "description": "Microsoft-specific X.509 certificate extension containing application-policy identifiers (OIDs) used to determine the permitted uses of a certificate.",
-    "enabled": true
-  },
-  {
     "oid": "1.3.6.1.4.1.311.21.7",
     "name": "Certificate Template",
     "short_name": "CERTIFICATE_TEMPLATE",
     "category": "MICROSOFT",
     "description": "Microsoft Certificate Template",
+    "enabled": true
+  },
+  {
+    "oid": "1.3.6.1.4.1.311.21.10",
+    "name": "Microsoft Application Policies",
+    "short_name": "APPLICATION_CERT_POLICIES",
+    "category": "MICROSOFT",
+    "description": "Microsoft-specific X.509 certificate extension containing application-policy identifiers (OIDs) used to determine the permitted uses of a certificate.",
     "enabled": true
   },
   {
@@ -157,6 +165,86 @@
     "short_name": "CA_ISSUERS",
     "category": "PKIX",
     "description": null,
+    "enabled": true
+  },
+  {
+    "oid": "2.5.4.3",
+    "name": "Common Name",
+    "short_name": "CN",
+    "category": "X509_SUBJECT",
+    "description": "Common Name",
+    "enabled": true
+  },
+  {
+    "oid": "2.5.4.4",
+    "name": "Surname",
+    "short_name": "SN",
+    "category": "X509_SUBJECT",
+    "description": "Surname",
+    "enabled": true
+  },
+  {
+    "oid": "2.5.4.6",
+    "name": "Country",
+    "short_name": "C",
+    "category": "X509_SUBJECT",
+    "description": "Country Name",
+    "enabled": true
+  },
+  {
+    "oid": "2.5.4.7",
+    "name": "Locality",
+    "short_name": "L",
+    "category": "X509_SUBJECT",
+    "description": "Locality Name",
+    "enabled": true
+  },
+  {
+    "oid": "2.5.4.8",
+    "name": "State or Province",
+    "short_name": "S",
+    "category": "X509_SUBJECT",
+    "description": "State or Province Name",
+    "enabled": true
+  },
+  {
+    "oid": "2.5.4.9",
+    "name": "Street Address",
+    "short_name": "STREET",
+    "category": "X509_SUBJECT",
+    "description": "Street Address",
+    "enabled": true
+  },
+  {
+    "oid": "2.5.4.10",
+    "name": "Organization",
+    "short_name": "O",
+    "category": "X509_SUBJECT",
+    "description": "Organization Name",
+    "enabled": true
+  },
+  {
+    "oid": "2.5.4.11",
+    "name": "Organizational Unit",
+    "short_name": "OU",
+    "category": "X509_SUBJECT",
+    "description": "Organizational Unit Name",
+    "enabled": true
+  },
+  {
+    "oid": "2.5.4.12",
+    "name": "Title",
+    "short_name": "T",
+    "category": "X509_SUBJECT",
+    "description": "Title",
+    "enabled": true
+  },
+  {
+    "oid": "2.5.4.42",
+    "name": "Given Name",
+    "short_name": "GIVEN_NAME",
+    "category": "X509_SUBJECT",
+    "description": "Given Name",
     "enabled": true
   },
   {
@@ -221,86 +309,6 @@
     "short_name": "EXTENDED_KEY_USAGE",
     "category": "X_509_V3_EXTENSIONS",
     "description": null,
-    "enabled": true
-  },
-  {
-    "oid": "2.5.4.10",
-    "name": "Organization",
-    "short_name": "O",
-    "category": "X509_SUBJECT",
-    "description": "Organization Name",
-    "enabled": true
-  },
-  {
-    "oid": "2.5.4.11",
-    "name": "Organizational Unit",
-    "short_name": "OU",
-    "category": "X509_SUBJECT",
-    "description": "Organizational Unit Name",
-    "enabled": true
-  },
-  {
-    "oid": "2.5.4.12",
-    "name": "Title",
-    "short_name": "T",
-    "category": "X509_SUBJECT",
-    "description": "Title",
-    "enabled": true
-  },
-  {
-    "oid": "2.5.4.3",
-    "name": "Common Name",
-    "short_name": "CN",
-    "category": "X509_SUBJECT",
-    "description": "Common Name",
-    "enabled": true
-  },
-  {
-    "oid": "2.5.4.4",
-    "name": "Surname",
-    "short_name": "SN",
-    "category": "X509_SUBJECT",
-    "description": "Surname",
-    "enabled": true
-  },
-  {
-    "oid": "2.5.4.42",
-    "name": "Given Name",
-    "short_name": "GIVEN_NAME",
-    "category": "X509_SUBJECT",
-    "description": "Given Name",
-    "enabled": true
-  },
-  {
-    "oid": "2.5.4.6",
-    "name": "Country",
-    "short_name": "C",
-    "category": "X509_SUBJECT",
-    "description": "Country Name",
-    "enabled": true
-  },
-  {
-    "oid": "2.5.4.7",
-    "name": "Locality",
-    "short_name": "L",
-    "category": "X509_SUBJECT",
-    "description": "Locality Name",
-    "enabled": true
-  },
-  {
-    "oid": "2.5.4.8",
-    "name": "State or Province",
-    "short_name": "S",
-    "category": "X509_SUBJECT",
-    "description": "State or Province Name",
-    "enabled": true
-  },
-  {
-    "oid": "2.5.4.9",
-    "name": "Street Address",
-    "short_name": "STREET",
-    "category": "X509_SUBJECT",
-    "description": "Street Address",
     "enabled": true
   }
 ]

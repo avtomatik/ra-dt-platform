@@ -102,8 +102,7 @@ RADP_DATABASE__PASSWORD=replace-with-a-local-password
 ### Web и отчёты
 
 После запуска приложения откройте `http://<host>:9000/`. Главная страница содержит
-ссылки на локальный перечень сертификатов (`/web`), предпросмотр (`/export/preview`)
-и два XLSX-экспорта (`/export/certificates?status=ALL` и
+ссылки на предпросмотр (`/export/preview`) и два XLSX-экспорта (`/export/certificates?status=ALL` и
 `/export/certificates?status=VALID`). Для обоих export-маршрутов доступны
 дополнительные параметры `gid` и `as_of_date=YYYY-MM-DD`. Фильтрация выполняется
 PostgreSQL; `VALID` означает статус `VALID` и `not_after` не ранее полуночи
@@ -135,7 +134,7 @@ uv run python -m radp db latest-certificates --limit 20
 uv run python -m radp db oids --limit 20
 uv run python -m radp sync run
 # Optional one-off override; .env remains unchanged
-uv run python -m radp sync run --certificate-folder "production folder/2026"
+uv run python -m radp sync run --certificate-folders "production folder/2026"
 uv run python -m radp oid export
 uv run python -m radp export excel
 uv run python -m radp serve --host 127.0.0.1 --port 9000
@@ -186,7 +185,7 @@ docker compose down
 | `python -m radp db tables` / `python -m radp tables` | Список таблиц |
 | `python -m radp db stats` | Число строк в таблицах |
 | `python -m radp db inspect --table TABLE` | Первые строки таблицы |
-| `python -m radp sync run [--certificate-folder FOLDER]` | Выполнить синхронизацию; необязательный параметр переопределяет папку из `.env` только для этого запуска |
+| `python -m radp sync run [--certificate-folders FOLDER[,FOLDER...]]` | Выполнить синхронизацию; необязательный параметр переопределяет папку из `.env` только для этого запуска |
 | `python -m radp oid export` | Экспортировать справочник OID из БД в seed JSON |
 | `python -m radp export excel` | Создать XLSX-отчёт |
 | `python -m radp export flush` | Вручную удалить XLSX-файлы из `data/exports` (не запускается при старте) |
@@ -232,4 +231,13 @@ separate forced-refresh/reconciliation operation would be needed if that case mu
 - [Administrator runbook](docs/operations/administrator-runbook.md)
 - [Operator guide](docs/operations/operator-guide.md)
 - [Access-control prerequisite before broader user exposure](docs/security/access-control-before-user-exposure.md)
-- [0.5.0 implementation release notes](docs/release-notes-0.5.0.md)
+- [0.5.1 implementation release notes](docs/release-notes-0.5.1.md)
+
+
+### Certificate template names
+
+RADP reads Microsoft V1 certificate-template names directly from the V1
+extension when present. For V2-only certificates, the extension contains a
+template OID rather than a friendly name; the corresponding name must be
+provided by the issuing CA's template catalogue or curated in the RADP OID
+registry. See [Certificate template names](docs/operations/certificate-template-names.md).

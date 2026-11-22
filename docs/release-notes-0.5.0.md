@@ -23,8 +23,6 @@ It contains the following additive changes:
   extension representations are also recognized for this lookup.
 - Writes Excel datetime columns as native UTC Excel datetime cells with the
   `yyyy-mm-dd hh:mm:ss` number format.
-- Adds the landing page and Operator report actions; changes `/web` to read from
-  the local PostgreSQL inventory rather than querying the upstream RA.
 - Adds Administrator and Operator operational documentation and records the
   authentication/authorization prerequisite before wider user exposure.
 

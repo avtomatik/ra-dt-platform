@@ -2,20 +2,15 @@ from datetime import date
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse
-from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from radp.application.reporting.enums import CertificateReportStatus
 from radp.application.reporting.models import CertificateReportFilters
 from radp.bootstrap.container import Container
 from radp.bootstrap.runtime import get_container
-from radp.config.paths import TEMPLATE_DIR
+
+from .templates import templates
 
 router = APIRouter(prefix="/export", tags=["export"])
-jinja_env = Environment(
-    loader=FileSystemLoader(str(TEMPLATE_DIR)),
-    autoescape=select_autoescape(["html", "xml"]),
-    cache_size=0,
-)
 
 
 def _filters(
@@ -38,15 +33,16 @@ def preview(
 ):
     filters = _filters(status, gid, as_of_date)
     items = runtime.reporting.project_first(filters=filters)
-    template = jinja_env.get_template("certificates.html")
-    html = template.render(
+    return templates.TemplateResponse(
         request=request,
-        certificate_report_rows=items,
-        columns=runtime.reporting.columns,
-        selected_status=status.value,
-        gid=gid,
+        name="certificates.html",
+        context={
+            "certificate_report_rows": items,
+            "columns": runtime.reporting.columns,
+            "selected_status": status.value,
+            "gid": gid,
+        },
     )
-    return HTMLResponse(content=html)
 
 
 @router.get("/certificates")

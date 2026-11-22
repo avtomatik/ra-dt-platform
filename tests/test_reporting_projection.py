@@ -169,3 +169,45 @@ def test_legacy_040_template_value_uses_curated_oid_name():
         certificate
     )
     assert row.certificate_template == "Legacy Corporate Template"
+
+
+def test_projection_prefers_v1_template_name_when_both_extensions_exist():
+    certificate = make_certificate(with_template=True)
+    v1_extension = Extension(
+        oid=OID.CERTIFICATE_TEMPLATE_NAME.value,
+        short_name="CERTIFICATE_TEMPLATE_NAME",
+        name="Microsoft Certificate Template Name",
+        critical=False,
+        value="historical-extension-value",
+        template_name="Employee",
+    )
+    certificate = certificate.model_copy(
+        update={
+            "x509": certificate.x509.model_copy(
+                update={
+                    "extensions": [v1_extension, *certificate.x509.extensions]
+                }
+            )
+        }
+    )
+    row = CertificateProjection(oid_resolver=FakeOIDResolver()).inventory(
+        certificate
+    )
+    assert row.certificate_template == "Employee"
+    assert row.classification is CertificateClassification.CORPORATE
+
+
+def test_v2_template_with_unmapped_oid_does_not_expose_raw_oid_as_name():
+    certificate = make_certificate(with_template=True)
+    extension = certificate.x509.extensions[0].model_copy(
+        update={"template_name": None}
+    )
+    certificate = certificate.model_copy(
+        update={
+            "x509": certificate.x509.model_copy(
+                update={"extensions": [extension]}
+            )
+        }
+    )
+    row = CertificateProjection().inventory(certificate)
+    assert row.certificate_template is None

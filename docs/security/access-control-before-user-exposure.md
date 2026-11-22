@@ -1,6 +1,6 @@
 # Access control required before Operator exposure
 
-The current RADP 0.5.0 API routes do not implement application-level
+The current RADP 0.5.1 candidate API routes do not implement application-level
 authentication or authorization. The landing page and report endpoints added in
 this release must therefore not be interpreted as an authenticated user portal.
 

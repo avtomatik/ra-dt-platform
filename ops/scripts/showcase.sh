@@ -72,8 +72,6 @@ fi
 pause
 if [[ "$OPEN_BROWSER" == true ]]; then
     log "Opening RADP interfaces..."
-    open_url "http://127.0.0.1:8000/web"
-    pause
     open_url "http://127.0.0.1:8000/export/preview"
     pause
     open_url "http://127.0.0.1:8000/export/certificates"
@@ -85,7 +83,6 @@ echo "             RADP Showcase Ready"
 echo "##############################################"
 echo
 echo "Application: http://127.0.0.1:8000"
-echo "Web UI:      http://127.0.0.1:8000/web"
 echo "Preview:     http://127.0.0.1:8000/export/preview"
 echo "Inventory:   http://127.0.0.1:8000/export/certificates"
 echo

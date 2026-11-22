@@ -2,6 +2,7 @@ import re
 from collections.abc import Sequence
 
 from radp.application.ports.oid_repository import OIDRepositoryPort
+from radp.domain.certificate.template import decode_legacy_template_name
 from radp.domain.models.certificate import Certificate
 from radp.domain.oid import OID
 
@@ -67,7 +68,15 @@ class CertificateProjection:
 
     def inventory(self, certificate: Certificate) -> CertificateInventoryRow:
         subject = certificate.subject_by_oid
-        template_extension = next(
+        template_name_extension = next(
+            (
+                extension
+                for extension in certificate.x509.extensions
+                if extension.oid == OID.CERTIFICATE_TEMPLATE_NAME.value
+            ),
+            None,
+        )
+        template_info_extension = next(
             (
                 extension
                 for extension in certificate.x509.extensions
@@ -75,14 +84,23 @@ class CertificateProjection:
             ),
             None,
         )
-        template_name = (
-            self._template_name(template_extension)
-            if template_extension is not None
-            else None
+        # V1 provides the name directly. Prefer it when both template
+        # extensions are present; otherwise use the V2 OID registry fallback.
+        template_name = None
+        if template_name_extension is not None:
+            template_name = (
+                template_name_extension.template_name
+                or decode_legacy_template_name(template_name_extension.value)
+            )
+        if template_name is None and template_info_extension is not None:
+            template_name = self._template_name(template_info_extension)
+        has_template = (
+            template_name_extension is not None
+            or template_info_extension is not None
         )
         classification = (
             CertificateClassification.CORPORATE
-            if template_extension is not None
+            if has_template
             else CertificateClassification.KEY_CARRIER
         )
         return CertificateInventoryRow(

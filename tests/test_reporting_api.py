@@ -58,13 +58,14 @@ def test_landing_preview_and_export_routes_use_expected_filters(
     with TestClient(app) as client:
         landing = client.get("/")
         assert landing.status_code == 200
-        assert 'href="/web"' in landing.text
-        assert 'href="/export/preview"' in landing.text
+        assert "/export/preview" in landing.text
         assert "status=ALL" in landing.text
         assert "status=VALID" in landing.text
-        web = client.get("/web")
-        assert web.status_code == 200
-        assert "gid-123" in web.text
+        assert "radp.css" in landing.text
+        assert client.get("/web").status_code == 404
+        static_css = client.get("/static/css/radp.css")
+        assert static_css.status_code == 200
+        assert "--accent" in static_css.text
         preview = client.get(
             "/export/preview?status=VALID&gid=gid-123&as_of_date=2026-11-17"
         )
@@ -79,4 +80,26 @@ def test_landing_preview_and_export_routes_use_expected_filters(
         assert exported.content == b"xlsx-test"
         assert reporting.export_filters[-1].status.value == "VALID"
         assert reporting.export_filters[-1].gid == "gid-123"
+    app.dependency_overrides.clear()
+
+
+def test_preview_template_autoescapes_user_supplied_filter_values(
+    monkeypatch, tmp_path
+):
+    _configure_environment(monkeypatch)
+    from radp.bootstrap.runtime import get_container
+    from radp.interfaces.api.main import create_app
+
+    runtime = SimpleNamespace(
+        reporting=FakeReporting(tmp_path / "unused.xlsx")
+    )
+    app = create_app()
+    app.dependency_overrides[get_container] = lambda: runtime
+    with TestClient(app) as client:
+        response = client.get(
+            "/export/preview", params={"gid": "<script>alert(1)</script>"}
+        )
+        assert response.status_code == 200
+        assert "&lt;script&gt;alert(1)&lt;/script&gt;" in response.text
+        assert "<script>alert(1)</script>" not in response.text
     app.dependency_overrides.clear()

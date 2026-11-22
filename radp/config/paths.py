@@ -4,6 +4,7 @@ BASE_DIR = Path(__file__).resolve().parents[2]
 DATA_DIR = BASE_DIR / "data"
 LOG_DIR = BASE_DIR / "logs"
 TEMPLATE_DIR = BASE_DIR / "html"
+STATIC_DIR = TEMPLATE_DIR / "static"
 EXPORTS_DIR = DATA_DIR / "exports"
 SEED_DIR = DATA_DIR / "seed"
 LOG_PATH = LOG_DIR / "radp.log"
