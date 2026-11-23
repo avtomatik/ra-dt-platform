@@ -45,26 +45,34 @@ class CertificateProjection:
     def columns(self) -> tuple[str, ...]:
         return self.fields
 
+    def reset_oid_cache(self) -> None:
+        """Use fresh registry labels for each report or preview request.
+        Keep lookups deduplicated within a report, but avoid pinning labels
+        indefinitely in a long-lived web process after an OID registry edit.
+        """
+        self._template_name_cache.clear()
+
     def _template_name(self, extension) -> str | None:
-        if extension.template_name:
-            return extension.template_name
         template_oid = extension.template_oid
         if template_oid is None:
             # 0.4.0 persisted str(MSCertificateTemplate(...)) in Extension.value.
-            # Read that legacy representation so existing rows can benefit from
-            # a curated OID registry name without a forced certificate refresh.
+            # Preserve this backward-compatible OID extraction.
             match = self._LEGACY_TEMPLATE_OID_PATTERN.search(extension.value)
             template_oid = match.group(1) if match else None
-        if template_oid is None or self.oid_resolver is None:
-            return None
-        if template_oid not in self._template_name_cache:
-            definition = self.oid_resolver.get(template_oid)
-            self._template_name_cache[template_oid] = (
-                (definition.name or definition.description)
-                if definition is not None
-                else None
-            )
-        return self._template_name_cache[template_oid]
+        if template_oid is not None and self.oid_resolver is not None:
+            if template_oid not in self._template_name_cache:
+                definition = self.oid_resolver.get(template_oid)
+                self._template_name_cache[template_oid] = (
+                    (definition.name or definition.description)
+                    if definition is not None
+                    else None
+                )
+            resolved = self._template_name_cache[template_oid]
+            if resolved is not None:
+                # The curated registry, not the ingestion-time snapshot, is
+                # authoritative when a V2 template is renamed or corrected.
+                return resolved
+        return extension.template_name
 
     def inventory(self, certificate: Certificate) -> CertificateInventoryRow:
         subject = certificate.subject_by_oid

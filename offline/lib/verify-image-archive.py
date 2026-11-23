@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 """Verify that Compose image references are present in a Docker image archive."""
-from __future__ import annotations
-
 import csv
 import hashlib
 import json

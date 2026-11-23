@@ -26,3 +26,6 @@ release/
 # Data exports
 ###############################################################################
 data/exports/**
+
+# Folder names are supplied through a runtime bind mount, not image layers.
+config/certificate-folders.toml

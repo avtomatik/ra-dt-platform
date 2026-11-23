@@ -5,13 +5,15 @@ from types import SimpleNamespace
 from fastapi.testclient import TestClient
 
 
-def _configure_environment(monkeypatch):
+def _configure_environment(monkeypatch, tmp_path):
+    folder_file = tmp_path / "folders.toml"
+    folder_file.write_text('certificate_folders = ["production"]\n')
     values = {
         "RADP_TRANSPORT__MODE": "http",
         "RADP_TRANSPORT__CURL_PATH": "/usr/bin/curl",
         "RADP_TRANSPORT__CERT_THUMBPRINT": "a" * 40,
         "RADP_REMOTE_RA__BASE_URL": "http://ra.example.test/",
-        "RADP_REMOTE_RA__CERTIFICATE_FOLDERS": "production",
+        "RADP_REMOTE_RA__CERTIFICATE_FOLDERS_FILE": str(folder_file),
         "RADP_DATABASE__HOST": "localhost",
         "RADP_DATABASE__DATABASE": "radp",
         "RADP_DATABASE__USERNAME": "radp",
@@ -45,7 +47,7 @@ class FakeReporting:
 def test_landing_preview_and_export_routes_use_expected_filters(
     monkeypatch, tmp_path
 ):
-    _configure_environment(monkeypatch)
+    _configure_environment(monkeypatch, tmp_path)
     from radp.bootstrap.runtime import get_container
     from radp.interfaces.api.main import create_app
 
@@ -86,7 +88,7 @@ def test_landing_preview_and_export_routes_use_expected_filters(
 def test_preview_template_autoescapes_user_supplied_filter_values(
     monkeypatch, tmp_path
 ):
-    _configure_environment(monkeypatch)
+    _configure_environment(monkeypatch, tmp_path)
     from radp.bootstrap.runtime import get_container
     from radp.interfaces.api.main import create_app
 

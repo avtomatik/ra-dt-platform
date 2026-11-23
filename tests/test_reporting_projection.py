@@ -211,3 +211,39 @@ def test_v2_template_with_unmapped_oid_does_not_expose_raw_oid_as_name():
     )
     row = CertificateProjection().inventory(certificate)
     assert row.certificate_template is None
+
+
+def test_v2_registry_names_remain_fresh_across_reports_without_refetching_der():
+    """OID catalogue edits should affect an existing certificate's next report."""
+    from radp.application.reporting.certificates import \
+        CertificateReportService
+    from radp.domain.oid.models import OIDDefinition
+
+    certificate = make_certificate(with_template=True)
+
+    class MutableResolver:
+        name = "Curated Name v1"
+        lookups = 0
+
+        def get(self, oid):
+            self.lookups += 1
+            return OIDDefinition(oid=oid, name=self.name)
+
+    class FakeCertificateQuery:
+        def list_for_report(self, filters, limit=None):
+            return [certificate, certificate]
+
+    resolver = MutableResolver()
+    projection = CertificateProjection(oid_resolver=resolver)
+    service = CertificateReportService(
+        certificates=FakeCertificateQuery(), projection=projection
+    )
+    assert [
+        row["certificate_template"] for row in service.project_first()
+    ] == ["Curated Name v1", "Curated Name v1"]
+    assert resolver.lookups == 1
+    resolver.name = "Curated Name v2"
+    assert [
+        row["certificate_template"] for row in service.project_first()
+    ] == ["Curated Name v2", "Curated Name v2"]
+    assert resolver.lookups == 2

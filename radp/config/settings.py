@@ -4,16 +4,17 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, Any
 
-from pydantic import (BaseModel, Field, HttpUrl, SecretStr, field_validator,
-                      model_validator)
+from pydantic import (BaseModel, ConfigDict, Field, HttpUrl, PrivateAttr,
+                      SecretStr, field_validator, model_validator)
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 from sqlalchemy import URL
 
 from .enums import TransportMode
+from .paths import BASE_DIR
 
 
-def _parse_csv_tuple(value: Any) -> tuple[str, ...]:
-    """Normalize a comma-separated setting or an already parsed sequence."""
+def _normalize_nonempty_values(value: Any) -> tuple[str, ...]:
+    """Normalize non-empty strings, preserving order and removing duplicates."""
     if isinstance(value, str):
         values = value.split(",")
     elif isinstance(value, (tuple, list)):
@@ -41,43 +42,48 @@ class TransportSettings(BaseModel):
 
 
 class RemoteRaSettings(BaseModel):
-    base_url: HttpUrl
-    certificate_folders: Annotated[tuple[str, ...] | None, NoDecode] = None
-    certificate_folders_file: Path | None = None
-    root: str = "/api/ra"
+    """RA endpoint settings; folder selection comes only from TOML.
+    ``certificate_folders`` is a derived, read-only property. It cannot be
+    provided through .env, programmatic settings or an unsupported CLI bypass.
+    The default file lives alongside the application's deployed configuration,
+    independently of the calling process's current working directory.
+    """
 
-    @field_validator("certificate_folders", mode="before")
-    @classmethod
-    def parse_certificate_folders(cls, value: Any) -> tuple[str, ...]:
-        return _parse_csv_tuple(value)
+    model_config = ConfigDict(extra="forbid")
+    base_url: HttpUrl
+    certificate_folders_file: Path = Field(
+        default=BASE_DIR / "config" / "certificate-folders.toml"
+    )
+    root: str = "/api/ra"
+    _certificate_folders: tuple[str, ...] = PrivateAttr(default=())
+
+    @property
+    def certificate_folders(self) -> tuple[str, ...]:
+        return self._certificate_folders
 
     @model_validator(mode="after")
-    def resolve_certificate_folders(self) -> "RemoteRaSettings":
-        # Inline environment configuration wins over the optional TOML file.
-        if self.certificate_folders is not None:
-            return self
-        if self.certificate_folders_file is None:
-            raise ValueError(
-                "Set certificate_folders or certificate_folders_file for the remote RA."
-            )
+    def load_certificate_folders(self) -> "RemoteRaSettings":
         path = self.certificate_folders_file
         try:
             with path.open("rb") as stream:
                 document = tomllib.load(stream)
         except (OSError, tomllib.TOMLDecodeError) as exc:
             raise ValueError(
-                f"Cannot read RA certificate folders from {path}: {exc}"
+                f"Cannot read RA certificate folders from {path}: {exc}. "
+                "Copy config/certificate-folders.toml.example to "
+                "config/certificate-folders.toml and configure its folders."
             ) from exc
-        if not isinstance(document, dict) or set(document) != {
-            "certificate_folders"
-        }:
+        if set(document) != {"certificate_folders"}:
             raise ValueError(
-                f"Expected only a 'certificate_folders' list in {path}."
+                f"Expected exactly one 'certificate_folders' array in {path}."
+            )
+        values = document["certificate_folders"]
+        if not isinstance(values, list):
+            raise ValueError(
+                f"Expected a TOML array of folder names in {path}."
             )
         try:
-            self.certificate_folders = _parse_csv_tuple(
-                document["certificate_folders"]
-            )
+            self._certificate_folders = _normalize_nonempty_values(values)
         except ValueError as exc:
             raise ValueError(
                 f"Invalid RA certificate folders in {path}: {exc}"
@@ -93,7 +99,7 @@ class ReportingSettings(BaseModel):
     def parse_projection_fields(cls, value: Any) -> tuple[str, ...] | None:
         if value is None:
             return None
-        return _parse_csv_tuple(value)
+        return _normalize_nonempty_values(value)
 
 
 class DatabaseSettings(BaseModel):

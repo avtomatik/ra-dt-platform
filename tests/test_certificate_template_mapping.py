@@ -98,3 +98,20 @@ def test_legacy_v1_extension_repr_can_be_decoded_without_refresh():
         )
     )
     assert decode_legacy_template_name(legacy_value) == "Employee"
+
+
+def test_malformed_certificate_extensions_warn_instead_of_silently_disappearing(
+    caplog,
+):
+    class BrokenExtensions:
+        serial_number = 123
+
+        @property
+        def extensions(self):
+            raise ValueError("malformed extension")
+
+    factory = CertificateFactory(FakeOIDRepository())
+    with caplog.at_level("WARNING"):
+        assert factory._build_extensions(BrokenExtensions()) == []
+    assert "template metadata may be incomplete" in caplog.text
+    assert "serial=123" in caplog.text

@@ -13,15 +13,6 @@ from .serve import serve
 from .synchronize import synchronize
 
 
-def _parse_certificate_folders(value: str) -> tuple[str, ...]:
-    folders = tuple(item.strip() for item in value.split(","))
-    if not folders or any(not folder for folder in folders):
-        raise argparse.ArgumentTypeError(
-            "Provide one or more non-empty comma-separated folder names."
-        )
-    return tuple(dict.fromkeys(folders))
-
-
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="radp", description="Registry Authority Data Platform"
@@ -153,14 +144,6 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sync_run = sync_commands.add_parser(
         "run", help="Synchronize certificates from the RA."
-    )
-    sync_run.add_argument(
-        "--certificate-folders",
-        type=_parse_certificate_folders,
-        help=(
-            "Comma-separated RA certificate folders to synchronize; overrides "
-            "RADP_REMOTE_RA__CERTIFICATE_FOLDERS from the environment or .env."
-        ),
     )
     sync_run.set_defaults(handler=synchronize)
 

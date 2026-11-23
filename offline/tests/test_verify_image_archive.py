@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 """Regression tests for Compose-reference validation against docker save output."""
-from __future__ import annotations
-
 import hashlib
 import json
 import subprocess

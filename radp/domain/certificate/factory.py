@@ -1,3 +1,5 @@
+import logging
+
 from cryptography import x509
 from cryptography.exceptions import UnsupportedAlgorithm
 from cryptography.hazmat.primitives import hashes, serialization
@@ -15,6 +17,8 @@ from radp.domain.oid import OID
 from radp.infrastructure.ra_api.dto.certificate import CertificateDetailDTO
 
 from .decoder import CertificateDecoder
+
+logger = logging.getLogger(__name__)
 
 
 class CertificateFactory:
@@ -128,6 +132,12 @@ class CertificateFactory:
         try:
             extensions = cert.extensions
         except (ValueError, UnsupportedAlgorithm):
+            logger.warning(
+                "Cannot decode extensions of certificate serial=%s; "
+                "template metadata may be incomplete",
+                getattr(cert, "serial_number", "unknown"),
+                exc_info=True,
+            )
             return result
         for extension in extensions:
             registry = self._resolve_oid(extension.oid.dotted_string)

@@ -1,6 +1,6 @@
 [project]
 name = "radp"
-version = "0.5.1"
+version = "0.6.0"
 description = "Python platform for Registration Authority certificate lifecycle synchronization, OID registry management, reporting, and offline deployment."
 readme = "README.md"
 requires-python = ">=3.12"

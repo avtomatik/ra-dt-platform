@@ -26,6 +26,7 @@ class CertificateReportService:
     def export_excel(
         self, filters: CertificateReportFilters | None = None
     ) -> ReportArtifact:
+        self.projection.reset_oid_cache()
         generated_at = datetime.now(timezone.utc)
         suffix = uuid4().hex[:10]
         filename = (
@@ -54,6 +55,7 @@ class CertificateReportService:
     def project_first(
         self, limit: int = 20, filters: CertificateReportFilters | None = None
     ) -> list[dict]:
+        self.projection.reset_oid_cache()
         certificates = self.certificates.list_for_report(
             filters or CertificateReportFilters(), limit=limit
         )

@@ -89,12 +89,15 @@ docker-compose.yml
 uv sync
 ```
 
-Настройки читаются через Pydantic Settings и переменные окружения с префиксом `RADP_`. Настройте каталоги сертификатов RA **одним из двух способов**:
+Настройки подключения и секреты читаются через Pydantic Settings и переменные окружения с префиксом `RADP_`. **Список папок сертификатов RA теперь задаётся исключительно в TOML, не в `.env`.**
 
-- Для простого развёртывания: `RADP_REMOTE_RA__CERTIFICATE_FOLDERS=default,archive` в `.env`.
-- Для отдельной конфигурации: скопируйте `config/certificate-folders.toml.example` в `config/certificate-folders.toml`, отредактируйте `certificate_folders:` (список TOML), **уберите** `RADP_REMOTE_RA__CERTIFICATE_FOLDERS` из `.env` и задайте `RADP_REMOTE_RA__CERTIFICATE_FOLDERS_FILE=/app/config/certificate-folders.toml` в Docker либо путь к файлу относительно текущего каталога на хосте. `docker-compose.yml` монтирует `./config` в `/app/config` только для чтения.
+1. Скопируйте `config/certificate-folders.toml.example` в `config/certificate-folders.toml`.
+2. Отредактируйте массив TOML `certificate_folders = ["default", "archive"]` под вашу RA. Порядок папок сохраняется, повторяющиеся имена удаляются.
+3. Удалите устаревшую переменную `RADP_REMOTE_RA__CERTIFICATE_FOLDERS` из действующего `.env` (она теперь вызывает ошибку конфигурации). Одноразовый CLI-флаг `--certificate-folders` также удалён.
 
-Если обе настройки заданы, список из `.env` имеет приоритет. При отсутствии обеих настроек приложение выдаст ошибку конфигурации. Пустые и повторяющиеся записи нормализуются либо отклоняются при запуске. Каждый каталог передаётся отдельным запросом `GET /api/ra/certificates?folder=...`; каждый каталог синхронизируется независимо. Одно значение `default` совместимо с конфигурацией RA-Emulator по умолчанию. Compose-файл использует следующие переменные для создания PostgreSQL:
+Путь к файлу по умолчанию определяется относительно каталога приложения, а не рабочего каталога процесса: `config/certificate-folders.toml` (в Docker — `/app/config/certificate-folders.toml`). При нестандартном развёртывании можно задать **только путь** к другому TOML через `RADP_REMOTE_RA__CERTIFICATE_FOLDERS_FILE`; сами имена папок по-прежнему читаются исключительно из файла. Docker Compose монтирует `./config` в оба контейнера `db-init` и `platform` с доступом только на чтение. Если файл отсутствует или содержит некорректную конфигурацию, RADP завершается с ошибкой при загрузке настроек.
+
+Каждая папка синхронизируется независимо через `GET /api/ra/certificates?folder=...`; одна папка `default` совместима с RA-Emulator. Новая CLI-синхронизация перечитывает TOML при каждом запуске процесса; уже запущенный web-процесс использует закэшированные настройки до перезапуска. Compose-файл использует следующие переменные для создания PostgreSQL:
 
 ```dotenv
 RADP_DATABASE__DATABASE=radp
@@ -138,8 +141,6 @@ uv run python -m radp db inspect --table certificates --limit 10
 uv run python -m radp db latest-certificates --limit 20
 uv run python -m radp db oids --limit 20
 uv run python -m radp sync run
-# Optional one-off override; .env remains unchanged
-uv run python -m radp sync run --certificate-folders "production folder/2026"
 uv run python -m radp oid export
 uv run python -m radp export excel
 uv run python -m radp serve --host 127.0.0.1 --port 9000
@@ -190,7 +191,7 @@ docker compose down
 | `python -m radp db tables` / `python -m radp tables` | Список таблиц |
 | `python -m radp db stats` | Число строк в таблицах |
 | `python -m radp db inspect --table TABLE` | Первые строки таблицы |
-| `python -m radp sync run [--certificate-folders FOLDER[,FOLDER...]]` | Выполнить синхронизацию; необязательный параметр переопределяет папку из `.env` только для этого запуска |
+| `python -m radp sync run` | Выполнить синхронизацию по списку папок из `config/certificate-folders.toml` |
 | `python -m radp oid export` | Экспортировать справочник OID из БД в seed JSON |
 | `python -m radp export excel` | Создать XLSX-отчёт |
 | `python -m radp export flush` | Вручную удалить XLSX-файлы из `data/exports` (не запускается при старте) |
@@ -236,6 +237,8 @@ separate forced-refresh/reconciliation operation would be needed if that case mu
 - [Administrator runbook](docs/operations/administrator-runbook.md)
 - [Operator guide](docs/operations/operator-guide.md)
 - [Access-control prerequisite before broader user exposure](docs/security/access-control-before-user-exposure.md)
+- [0.6.0 release notes](docs/release-notes-0.6.0.md)
+- [RADP template/stabilization review](docs/engineering/radp-template-stabilization-review.md)
 - [0.5.1 implementation release notes](docs/release-notes-0.5.1.md)
 
 
