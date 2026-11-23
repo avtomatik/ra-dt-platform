@@ -1,79 +1,84 @@
+version: "2.4"
+
+x-radp-common: &radp-common
+  image: ${DEPLOY_RADP_IMAGE:?Set DEPLOY_RADP_IMAGE}
+  env_file:
+    - .env
+  environment:
+    DEPLOY_CONTAINER_GID: ${DEPLOY_CONTAINER_GID:?Set DEPLOY_CONTAINER_GID}
+    DEPLOY_CONTAINER_UID: ${DEPLOY_CONTAINER_UID:?Set DEPLOY_CONTAINER_UID}
+    DEPLOY_CONTAINER_USER: ${DEPLOY_CONTAINER_USER:?Set DEPLOY_CONTAINER_USER}
+  volumes:
+    - ./config:/app/config:ro
+    - ./data:/app/data
+    - ./logs:/app/logs
+    - /opt/cprocsp:/opt/cprocsp:ro
+    - /etc/opt/cprocsp:/etc/opt/cprocsp:ro
+    - /var/opt/cprocsp:/etc/var/cprocsp
+  networks:
+    - ra-network
+
 services:
   postgres:
-    image: postgres:17
-    pull_policy: never
+    image: ${DEPLOY_POSTGRES_IMAGE:?Set DEPLOY_POSTGRES_IMAGE}
     container_name: radp-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${RADP_DATABASE__DATABASE}
-      POSTGRES_USER: ${RADP_DATABASE__USERNAME}
-      POSTGRES_PASSWORD: ${RADP_DATABASE__PASSWORD}
+      POSTGRES_DB: ${RADP_DATABASE__DATABASE:?Set RADP_DATABASE__DATABASE}
+      POSTGRES_USER: ${RADP_DATABASE__USERNAME:?Set RADP_DATABASE__USERNAME}
+      POSTGRES_PASSWORD: ${RADP_DATABASE__PASSWORD:?Set RADP_DATABASE__PASSWORD}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test:
-        ["CMD-SHELL", "pg_isready -U ${RADP_DATABASE__USERNAME} -d ${RADP_DATABASE__DATABASE}"]
-      interval: 60s
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
       timeout: 10s
       retries: 5
       start_period: 20s
     ports:
-      - "5432:5432"
+      # Only the local host can reach PostgreSQL; remote DB access needs a
+      # deliberate, reviewed change rather than an accidental public bind.
+      - "127.0.0.1:15432:5432"
     networks:
       - ra-network
 
   db-init:
-    image: radp:latest
-    pull_policy: never
+    <<: *radp-common
     container_name: radp-db-init
-    env_file:
-      - .env
-    command:
-      - /app/.venv/bin/python
-      - -m
-      - radp
-      - bootstrap
+    command: ["/app/.venv/bin/python", "-m", "radp", "bootstrap"]
     depends_on:
       postgres:
         condition: service_healthy
-    networks:
-      - ra-network
     restart: "no"
+    healthcheck:
+      disable: true
 
   platform:
-    image: radp:latest
-    pull_policy: never
+    <<: *radp-common
     container_name: radp-platform
     restart: unless-stopped
     ports:
       - "9000:9000"
-    env_file:
-      - .env
     depends_on:
       db-init:
         condition: service_completed_successfully
-    volumes:
-      - ./data:/app/data
-    networks:
-      - ra-network
     labels:
       ofelia.enabled: "true"
       ofelia.job-exec.sync.schedule: "0 0 0 * * *"
-      ofelia.job-exec.sync.command: >
-        /app/.venv/bin/python -m radp sync run
+      ofelia.job-exec.sync.command: /app/.venv/bin/python -m radp sync run
       ofelia.job-exec.sync.no-overlap: "true"
+      ofelia.job-exec.sync.user: "${DEPLOY_CONTAINER_USER:?Set DEPLOY_CONTAINER_USER}"
 
   scheduler:
-    image: mcuadros/ofelia:latest
-    pull_policy: never
+    image: ${DEPLOY_OFELIA_IMAGE:?Set DEPLOY_OFELIA_IMAGE}
     container_name: radp-scheduler
     restart: unless-stopped
-    command: ["daemon", "--docker"]
+    command: ["daemon", "--docker", "--docker-filter", "label=com.docker.compose.project=${COMPOSE_PROJECT_NAME}"]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
       platform:
-        condition: service_started
+        condition: service_healthy
     networks:
       - ra-network
 
@@ -82,4 +87,4 @@ volumes:
 
 networks:
   ra-network:
-    name: ra-network
+    name: ${DEPLOY_RA_NETWORK:-ra-network}

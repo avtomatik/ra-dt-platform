@@ -4,60 +4,61 @@
 ###############################################################################
 
 radp_package_bundle() {
-  local mode="$1" root="$2" stage zip_file checksum_file
-  local -a required=()
-  stage="$root/release/radp-offline-$mode"
-  zip_file="$root/release/radp-offline-$mode.zip"
-  checksum_file="$zip_file.sha256"
+    local mode="$1" root="$2" stage zip_file checksum_file
+    local -a required=()
+    stage="$root/release/radp-offline-$mode"
+    zip_file="$root/release/radp-offline-$mode.zip"
+    checksum_file="$zip_file.sha256"
 
-  [[ -d "$stage" ]] || radp_die "Missing staging directory: $stage. Run $mode/prepare.sh first."
-  required=(images.tar docker-compose.yml .env.enc .env.sha256 install.sh install-common.sh \
-    target-platform.txt compose-images.txt image-manifest.tsv runtime-requirements.txt bundle-mode.txt)
-  if [[ "$mode" == "full" ]]; then
-    required+=(os-packages.txt docker-install/package-inventory.tsv docker-install/frozen-sources.list)
-    [[ -s "$stage/docker-install/debs/Packages" ]] || radp_die "Full bundle is missing docker-install/debs/Packages."
-    [[ -s "$stage/docker-install/debs/Packages.gz" ]] || radp_die "Full bundle is missing docker-install/debs/Packages.gz."
-    [[ -s "$stage/docker-install/debs/Release" ]] || radp_die "Full bundle is missing docker-install/debs/Release."
-    compgen -G "$stage/docker-install/debs/*.deb" >/dev/null || radp_die "Full bundle contains no .deb archives."
-  else
-    required+=(HOST-REQUIREMENTS.txt)
-    [[ ! -d "$stage/docker-install" ]] || radp_die "Partial bundle must not contain docker-install/."
-    if find "$stage" -type f -name '*.deb' -print -quit | grep -q .; then
-      radp_die "Partial bundle unexpectedly contains .deb files."
+    [[ -d "$stage" ]] || radp_die "Missing staging directory: $stage. Run $mode/prepare.sh first."
+    required=(images.tar docker-compose.yml docker-compose.production.yml deployment-env.sh
+        config/certificate-folders.toml .env.enc .env.sha256 .env.compose.enc .env.compose.sha256 install.sh install-common.sh
+        target-platform.txt compose-images.txt image-manifest.tsv runtime-requirements.txt bundle-mode.txt)
+    if [[ "$mode" == "full" ]]; then
+        required+=(os-packages.txt docker-install/package-inventory.tsv docker-install/frozen-sources.list)
+        [[ -s "$stage/docker-install/debs/Packages" ]] || radp_die "Full bundle is missing docker-install/debs/Packages."
+        [[ -s "$stage/docker-install/debs/Packages.gz" ]] || radp_die "Full bundle is missing docker-install/debs/Packages.gz."
+        [[ -s "$stage/docker-install/debs/Release" ]] || radp_die "Full bundle is missing docker-install/debs/Release."
+        compgen -G "$stage/docker-install/debs/*.deb" >/dev/null || radp_die "Full bundle contains no .deb archives."
+    else
+        required+=(HOST-REQUIREMENTS.txt)
+        [[ ! -d "$stage/docker-install" ]] || radp_die "Partial bundle must not contain docker-install/."
+        if find "$stage" -type f -name '*.deb' -print -quit | grep -q .; then
+            radp_die "Partial bundle unexpectedly contains .deb files."
+        fi
     fi
-  fi
 
-  local file
-  for file in "${required[@]}"; do
-    [[ -s "$stage/$file" ]] || radp_die "Required bundle file missing or empty: $file"
-  done
+    local file
+    for file in "${required[@]}"; do
+        [[ -s "$stage/$file" ]] || radp_die "Required bundle file missing or empty: $file"
+    done
 
-  python3 "$root/offline/lib/verify-image-archive.py" \
-    "$stage/images.tar" "$stage/compose-images.txt" "$stage/image-manifest.tsv" \
-    || radp_die "Compose image references do not match the exported images.tar manifest."
+    python3 "$root/offline/lib/verify-image-archive.py" \
+        "$stage/images.tar" "$stage/compose-images.txt" "$stage/image-manifest.tsv" ||
+        radp_die "Compose image references do not match the exported images.tar manifest."
 
-  [[ "$(head -n 1 "$stage/bundle-mode.txt")" == "mode=$mode" ]] || radp_die "Bundle mode manifest does not match $mode."
-  grep -q '^linux/amd64$' "$stage/target-platform.txt" || radp_die "Wrong target platform."
-  [[ ! -e "$stage/.env" ]] || radp_die "Plaintext .env exists in staging; refusing to package."
-  if find "$stage" -type l -print -quit | grep -q .; then
-    radp_die "Staging contains symbolic links. Resolve them before packaging."
-  fi
+    [[ "$(head -n 1 "$stage/bundle-mode.txt")" == "mode=$mode" ]] || radp_die "Bundle mode manifest does not match $mode."
+    grep -q '^linux/amd64$' "$stage/target-platform.txt" || radp_die "Wrong target platform."
+    [[ ! -e "$stage/.env" && ! -e "$stage/.env.compose" ]] || radp_die "Plaintext environment files exist in staging; refusing to package."
+    if find "$stage" -type l -print -quit | grep -q .; then
+        radp_die "Staging contains symbolic links. Resolve them before packaging."
+    fi
 
-  radp_require_command sha256sum
-  radp_require_command python3
-  mkdir -p "$root/release"
-  radp_log "Generating SHA-256 checksums for the $mode bundle."
-  (
-    cd "$stage"
-    rm -f SHA256SUMS
-    LC_ALL=C find . -type f ! -name SHA256SUMS -print0 \
-      | LC_ALL=C sort -z \
-      | xargs -0 sha256sum > SHA256SUMS
-    sha256sum -c SHA256SUMS
-  )
+    radp_require_command sha256sum
+    radp_require_command python3
+    mkdir -p "$root/release"
+    radp_log "Generating SHA-256 checksums for the $mode bundle."
+    (
+        cd "$stage" || exit 1
+        rm -f SHA256SUMS
+        LC_ALL=C find . -type f ! -name SHA256SUMS -print0 |
+            LC_ALL=C sort -z |
+            xargs -0 sha256sum >SHA256SUMS
+        sha256sum -c SHA256SUMS
+    )
 
-  rm -f -- "$zip_file" "$checksum_file"
-  python3 - "$stage" "$zip_file" "$mode" <<'PY'
+    rm -f -- "$zip_file" "$checksum_file"
+    python3 - "$stage" "$zip_file" "$mode" <<'PY'
 from hashlib import sha256
 from pathlib import Path, PurePosixPath
 from zipfile import ZIP_DEFLATED, ZIP_STORED, ZipFile, ZipInfo
@@ -74,7 +75,7 @@ with ZipFile(archive, "w", allowZip64=True) as zf:
         name = f"{prefix}/{relative}"
         info = ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
         info.create_system = 3
-        if path.name in {".env.enc", ".env.sha256"}:
+        if path.name in {".env.enc", ".env.sha256", ".env.compose.enc", ".env.compose.sha256"}:
             permissions = 0o100600
         elif path.suffix == ".sh":
             permissions = 0o100755
@@ -86,7 +87,9 @@ with ZipFile(archive, "w", allowZip64=True) as zf:
         zf.writestr(info, path.read_bytes(), compress_type=info.compress_type, compresslevel=6)
 
 required_common = {
-    "images.tar", "docker-compose.yml", ".env.enc", ".env.sha256", "install.sh",
+    "images.tar", "docker-compose.yml", "docker-compose.production.yml", "deployment-env.sh",
+    "config/certificate-folders.toml", ".env.enc", ".env.sha256", ".env.compose.enc",
+    ".env.compose.sha256", "install.sh",
     "install-common.sh", "target-platform.txt", "compose-images.txt", "image-manifest.tsv",
     "runtime-requirements.txt", "bundle-mode.txt", "SHA256SUMS",
 }
@@ -110,7 +113,7 @@ with ZipFile(archive, "r") as zf:
         raise SystemExit("ERROR: ZIP contains a path outside its bundle root")
     if any(PurePosixPath(name).is_absolute() or ".." in PurePosixPath(name).parts for name in names):
         raise SystemExit("ERROR: ZIP contains an unsafe path")
-    if any(PurePosixPath(name).name == ".env" for name in names):
+    if any(PurePosixPath(name).name in {".env", ".env.compose"} for name in names):
         raise SystemExit("ERROR: plaintext .env found in ZIP")
 
     relative_names = {name[len(prefix) + 1:] for name in names}
@@ -133,7 +136,8 @@ with ZipFile(archive, "r") as zf:
         permissions = (info.external_attr >> 16) & 0o777
         if not permissions & 0o111:
             raise SystemExit(f"ERROR: executable permission missing from {required_executable}")
-    for secret_file in (f"{prefix}/.env.enc", f"{prefix}/.env.sha256"):
+    for secret_file in (f"{prefix}/.env.enc", f"{prefix}/.env.sha256",
+                        f"{prefix}/.env.compose.enc", f"{prefix}/.env.compose.sha256"):
         info = zf.getinfo(secret_file)
         permissions = (info.external_attr >> 16) & 0o777
         if permissions & 0o077:
@@ -177,24 +181,24 @@ with ZipFile(archive, "r") as zf:
 
 print(f"Verified {len(names)} ZIP entries, required contents, permissions and SHA-256 manifest")
 PY
-  chmod 0600 "$zip_file"
-  (
-    cd "$root/release"
-    sha256sum "$(basename "$zip_file")" > "$(basename "$checksum_file")"
-    sha256sum -c "$(basename "$checksum_file")"
-  )
-  chmod 0600 "$checksum_file"
-  if [[ -n "${SUDO_USER:-}" && "$SUDO_USER" != "root" ]]; then
-    chown "$SUDO_USER:$(id -gn "$SUDO_USER")" "$zip_file" "$checksum_file"
-  fi
+    chmod 0600 "$zip_file"
+    (
+        cd "$root/release" || exit 1
+        sha256sum "$(basename "$zip_file")" >"$(basename "$checksum_file")"
+        sha256sum -c "$(basename "$checksum_file")"
+    )
+    chmod 0600 "$checksum_file"
+    if [[ -n "${SUDO_USER:-}" && "$SUDO_USER" != "root" ]]; then
+        chown "$SUDO_USER:$(id -gn "$SUDO_USER")" "$zip_file" "$checksum_file"
+    fi
 
-  printf '\n%s PACKAGE SUCCESS\nZIP: %s\nZIP checksum: %s\nSize: %s bytes\nSHA-256: ' \
-    "${mode^^}" "$zip_file" "$checksum_file" "$(stat -c '%s' "$zip_file")"
-  sha256sum "$zip_file"
-  printf 'Plaintext .env in ZIP: NO\n'
-  if [[ "$mode" == "partial" ]]; then
-    printf 'DEB archives in bundle: 0 (intentionally omitted)\n'
-  else
-    printf 'DEB archives in bundle: %s\n' "$(find "$stage/docker-install/debs" -maxdepth 1 -name '*.deb' -type f | wc -l)"
-  fi
+    printf '\n%s PACKAGE SUCCESS\nZIP: %s\nZIP checksum: %s\nSize: %s bytes\nSHA-256: ' \
+        "${mode^^}" "$zip_file" "$checksum_file" "$(stat -c '%s' "$zip_file")"
+    sha256sum "$zip_file"
+    printf 'Plaintext .env / .env.compose in ZIP: NO\n'
+    if [[ "$mode" == "partial" ]]; then
+        printf 'DEB archives in bundle: 0 (intentionally omitted)\n'
+    else
+        printf 'DEB archives in bundle: %s\n' "$(find "$stage/docker-install/debs" -maxdepth 1 -name '*.deb' -type f | wc -l)"
+    fi
 }

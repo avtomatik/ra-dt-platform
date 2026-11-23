@@ -1,0 +1,6 @@
+# Copy to config/certificate-folders.toml; folder names are not configured
+# through .env or CLI overrides.
+# Folder order is significant; RADP synchronizes in this order.
+certificate_folders = ["default"]
+# For multiple folders, for example:
+# certificate_folders = ["production", "archive", "production folder/2026"]

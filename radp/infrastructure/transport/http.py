@@ -1,7 +1,5 @@
 from typing import Any, Mapping
 
-import httpx2
-
 from radp.config.settings import Settings
 
 from .response import HTTPResponse
@@ -27,6 +25,11 @@ class HTTPTransport:
             path=path,
             params=params,
         )
+        # Import the optional HTTP transport dependency only when this
+        # backend is actually used. CryptoPro curl deployments and CLI help
+        # should not need to import httpx2 as a module-level side effect.
+        import httpx2
+
         async with httpx2.AsyncClient(timeout=self.TIMEOUT_SECONDS) as client:
             response = await client.get(url, headers=headers)
         try:

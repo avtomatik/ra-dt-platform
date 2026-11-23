@@ -74,7 +74,6 @@ radp/
 ├── domain/            # доменные модели и декодирование сертификатов
 ├── infrastructure/    # PostgreSQL, репозитории, RA API и transport
 ├── interfaces/api/    # FastAPI
-├── __main__.py        # python -m radp
 └── __main__.py        # python -m radp
 
 data/seed/oid_registry.json
@@ -90,7 +89,15 @@ docker-compose.yml
 uv sync
 ```
 
-Настройки читаются через Pydantic Settings и переменные окружения с префиксом `RADP_`. Обязательно задайте `RADP_REMOTE_RA__CERTIFICATE_FOLDER`: это имя каталога RA передаётся параметром `folder` при запросе `GET /api/ra/certificates?folder=...`; значение не зашито в код. Compose-файл использует следующие переменные для создания PostgreSQL:
+Настройки подключения и секреты читаются через Pydantic Settings и переменные окружения с префиксом `RADP_`. **Список папок сертификатов RA теперь задаётся исключительно в TOML, не в `.env`.**
+
+1. Скопируйте `config/certificate-folders.toml.example` в `config/certificate-folders.toml`.
+2. Отредактируйте массив TOML `certificate_folders = ["default", "archive"]` под вашу RA. Порядок папок сохраняется, повторяющиеся имена удаляются.
+3. Удалите устаревшую переменную `RADP_REMOTE_RA__CERTIFICATE_FOLDERS` из действующего `.env` (она теперь вызывает ошибку конфигурации). Одноразовый CLI-флаг `--certificate-folders` также удалён.
+
+Путь к файлу по умолчанию определяется относительно каталога приложения, а не рабочего каталога процесса: `config/certificate-folders.toml` (в Docker — `/app/config/certificate-folders.toml`). При нестандартном развёртывании можно задать **только путь** к другому TOML через `RADP_REMOTE_RA__CERTIFICATE_FOLDERS_FILE`; сами имена папок по-прежнему читаются исключительно из файла. Docker Compose монтирует `./config` в оба контейнера `db-init` и `platform` с доступом только на чтение. Если файл отсутствует или содержит некорректную конфигурацию, RADP завершается с ошибкой при загрузке настроек.
+
+Каждая папка синхронизируется независимо через `GET /api/ra/certificates?folder=...`; одна папка `default` совместима с RA-Emulator. Новая CLI-синхронизация перечитывает TOML при каждом запуске процесса; уже запущенный web-процесс использует закэшированные настройки до перезапуска. Compose-файл использует следующие переменные для создания PostgreSQL:
 
 ```dotenv
 RADP_DATABASE__DATABASE=radp
@@ -99,6 +106,53 @@ RADP_DATABASE__PASSWORD=replace-with-a-local-password
 ```
 
 Создайте локальный `.env` из актуального шаблона проекта (если он предусмотрен), задайте параметры подключения к RA API и транспорта в соответствии с настройками `radp/config/settings.py`. Не коммитьте пароли, сертификаты или thumbprint-ы. Имена переменных подключения к БД должны соответствовать модели `Settings` именно в вашем checkout.
+
+### Compose: local/test и production
+
+Для Docker-развёртывания используйте **два отдельных файла**, а не объединяйте их:
+
+```bash
+cp .env.example .env                       # настройки RADP, пароль БД, адрес RA
+cp .env.compose.example .env.compose       # локальный/тестовый режим
+# Для рабочего контура вместо предыдущей команды:
+# cp .env.compose.production.example .env.compose
+cp config/certificate-folders.toml.example config/certificate-folders.toml
+./ops/scripts/compose.sh config --quiet
+```
+
+В `.env.compose` параметр `DEPLOY_ENVIRONMENT=production` добавляет
+`docker-compose.production.yml`. Для рабочего контура укажите
+`DEPLOY_RA_HOST_IP` — реальный IPv4-адрес RA. Имя хоста **не дублируется**:
+оно извлекается из `RADP_REMOTE_RA__BASE_URL` в `.env`, например
+`http://ra-server-name/api/ra/` даёт хост `ra-server-name`. Тестовый режим
+не использует статическое сопоставление имени и IP.
+
+Запуск и диагностика используют общий загрузчик: `./ops/scripts/deploy.sh`,
+`./ops/scripts/status.sh`, `./ops/scripts/compose.sh ps`. Для офлайн-сборки
+**оба** файла `.env` и `.env.compose` шифруются раздельно и проверяются по
+контрольным суммам, а `config/certificate-folders.toml` включается в состав
+архива. Подробности: [`ops/README.md`](ops/README.md) и
+[`offline/README.md`](offline/README.md).
+
+### Web и отчёты
+
+После запуска приложения откройте `http://<host>:9000/`. Главная страница содержит
+ссылки на предпросмотр (`/export/preview`) и два XLSX-экспорта (`/export/certificates?status=ALL` и
+`/export/certificates?status=VALID`). Для обоих export-маршрутов доступны
+дополнительные параметры `gid` и `as_of_date=YYYY-MM-DD`. Фильтрация выполняется
+PostgreSQL; `VALID` означает статус `VALID` и `not_after` не ранее полуночи
+указанной даты UTC (по умолчанию — текущая дата UTC).
+
+По умолчанию сохраняется полный набор колонок инвентарного отчёта RADP. Для
+выбора подмножества задайте необязательную переменную, например:
+
+```dotenv
+RADP_REPORTING__PROJECTION_FIELDS=gid,common_name,serial_number,status,not_after
+```
+
+Перед предоставлением доступа пользователям ознакомьтесь с
+[`docs/security/access-control-before-user-exposure.md`](docs/security/access-control-before-user-exposure.md):
+маршруты в этой версии не реализуют прикладную аутентификацию и авторизацию.
 
 ## Запуск на хосте через `uv`
 
@@ -114,14 +168,13 @@ uv run python -m radp db inspect --table certificates --limit 10
 uv run python -m radp db latest-certificates --limit 20
 uv run python -m radp db oids --limit 20
 uv run python -m radp sync run
-# Optional one-off override; .env remains unchanged
-uv run python -m radp sync run --certificate-folder "production folder/2026"
 uv run python -m radp oid export
 uv run python -m radp export excel
 uv run python -m radp serve --host 127.0.0.1 --port 9000
 ```
 
-При запуске CLI с хоста настройте адрес PostgreSQL на `localhost` и используйте только если порт БД намеренно опубликован в вашем локальном Compose override. Базовый Compose должен держать PostgreSQL внутри приватной сети Compose. Если конфигурация не загружает `.env` автоматически, передайте его явно, например `uv run --env-file .env python -m radp tables`. Команды `drop` и `reset` удаляют данные/схему — используйте их только осознанно.
+При запуске CLI с хоста настройте адрес PostgreSQL на `localhost` и используйте только если порт БД намеренно опубликован в вашем локальном Compose override. Базовый Compose публикует PostgreSQL только на 127.0.0.1:15432; доступ по сети
+требует осознанного изменения конфигурации. Если конфигурация не загружает `.env` автоматически, передайте его явно, например `uv run --env-file .env python -m radp tables`. Команды `drop` и `reset` удаляют данные/схему — используйте их только осознанно.
 
 ## Запуск через Docker Compose
 
@@ -166,7 +219,7 @@ docker compose down
 | `python -m radp db tables` / `python -m radp tables` | Список таблиц |
 | `python -m radp db stats` | Число строк в таблицах |
 | `python -m radp db inspect --table TABLE` | Первые строки таблицы |
-| `python -m radp sync run [--certificate-folder FOLDER]` | Выполнить синхронизацию; необязательный параметр переопределяет папку из `.env` только для этого запуска |
+| `python -m radp sync run` | Выполнить синхронизацию по списку папок из `config/certificate-folders.toml` |
 | `python -m radp oid export` | Экспортировать справочник OID из БД в seed JSON |
 | `python -m radp export excel` | Создать XLSX-отчёт |
 | `python -m radp export flush` | Вручную удалить XLSX-файлы из `data/exports` (не запускается при старте) |
@@ -205,3 +258,23 @@ separate forced-refresh/reconciliation operation would be needed if that case mu
 ## Лицензия
 
 Проект распространяется в соответствии с лицензией, указанной в файле [LICENSE.md](LICENSE.md).
+
+
+## Operational documentation
+
+- [Operational scripts and setup](ops/README.md)
+- [Certificate-template naming](docs/operations/certificate-template-names.md)
+- [Access-control prerequisite before broader user exposure](docs/security/access-control-before-user-exposure.md)
+- [0.6.0 release notes](docs/release-notes-0.6.0.md)
+- [Current source and operational review](docs/engineering/radp-operational-review.md)
+- Template/stabilization review: produced separately; not included in this archive.
+- [0.5.1 implementation release notes](docs/release-notes-0.5.1.md)
+
+
+### Certificate template names
+
+RADP reads Microsoft V1 certificate-template names directly from the V1
+extension when present. For V2-only certificates, the extension contains a
+template OID rather than a friendly name; the corresponding name must be
+provided by the issuing CA's template catalogue or curated in the RADP OID
+registry. See [Certificate template names](docs/operations/certificate-template-names.md).

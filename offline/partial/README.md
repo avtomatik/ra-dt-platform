@@ -8,7 +8,7 @@ provisioning and validating those host packages and their complete dependency
 closure before running `install.sh`.
 
 The target must also provide an OpenSSL CLI supporting
-`openssl enc -aes-256-cbc -pbkdf2 -iter` for decrypting the protected `.env` file.
+`openssl enc -aes-256-cbc -pbkdf2 -iter` for decrypting both protected `.env` and `.env.compose` files.
 No exact OpenSSL version is pinned in PARTIAL mode; the target's OpenSSL command
 is exercised by the actual decrypt operation.
 

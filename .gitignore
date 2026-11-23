@@ -16,6 +16,7 @@ eggs/
 .eggs/
 lib/
 !offline/lib
+!ops/lib
 lib64/
 parts/
 sdist/
@@ -150,6 +151,8 @@ config.private.*
 .env
 .env.*
 !.env.example
+!.env.compose.example
+!.env.compose.production.example
 
 ###############################################################################
 # Generated offline bundles
@@ -169,3 +172,6 @@ data/exports/**
 # Apple Desktop Services Store
 ###############################################################################
 .DS_Store
+
+# Local RA folder selection (copy from example; never commit deployment-specific values)
+config/certificate-folders.toml

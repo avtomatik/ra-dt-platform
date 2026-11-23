@@ -4,14 +4,14 @@ import logging
 
 from radp.application.doctor.service import CheckResult
 from radp.bootstrap.runtime import get_container
-from radp.config.settings import Settings
+from radp.config.settings import get_settings
 
 logger = logging.getLogger(__name__)
 
 
 def doctor(_args: argparse.Namespace) -> int:
     try:
-        Settings()
+        get_settings()
     except Exception as exc:
         logger.error("configuration: FAIL - %s", exc)
         return 1

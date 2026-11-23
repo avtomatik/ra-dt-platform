@@ -28,12 +28,3 @@ async def paginate_pages(
             raise PaginationLoopError(f"Pagination loop detected: {href}.")
         visited_hrefs.add(href)
         page = await fetch_page(href)
-
-
-async def paginate(
-    first_page: Page[T],
-    fetch_page: Callable[[str], Awaitable[Page[T]]],
-) -> AsyncIterator[Page[T]]:
-    async for page in paginate_pages(first_page, fetch_page):
-        for item in page.items:
-            yield item

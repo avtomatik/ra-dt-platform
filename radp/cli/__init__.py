@@ -1,7 +1,7 @@
 import argparse
 
 from radp.config.logging import setup_logging
-from radp.config.settings import Settings
+from radp.config.settings import get_settings
 
 from .bootstrap import bootstrap
 from .database import (create, drop, inspect_table, latest_certificates,
@@ -145,13 +145,6 @@ def build_parser() -> argparse.ArgumentParser:
     sync_run = sync_commands.add_parser(
         "run", help="Synchronize certificates from the RA."
     )
-    sync_run.add_argument(
-        "--certificate-folder",
-        help=(
-            "RA certificate folder to synchronize; overrides "
-            "RADP_REMOTE_RA__CERTIFICATE_FOLDER from the environment or .env."
-        ),
-    )
     sync_run.set_defaults(handler=synchronize)
 
     serve_parser = commands.add_parser(
@@ -172,10 +165,12 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> None:
-    settings = Settings()
-    setup_logging(settings.log_level)
     parser = build_parser()
     args = parser.parse_args()
+    # Let argparse handle --help/argument errors before loading operational
+    # configuration. This keeps CLI discovery usable on an unconfigured host.
+    settings = get_settings()
+    setup_logging(settings.log_level)
     result = args.handler(args)
     if isinstance(result, int):
         raise SystemExit(result)

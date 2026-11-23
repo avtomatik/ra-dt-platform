@@ -1,4 +1,4 @@
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Sequence
 
 from radp.infrastructure.ra_api.dto.certificate import (CertificateDetailDTO,
                                                         CertificateSummaryDTO)
@@ -16,12 +16,32 @@ class RAClient:
     def __init__(
         self,
         transport: Transport,
-        certificate_folder: str,
+        certificate_folders: Sequence[str],
         search_parameter: SearchParameter = DEFAULT_SEARCH_PARAMETER,
     ):
+        # Accept a direct string defensively as one folder, not as a sequence
+        # of individual characters. Normal application configuration supplies
+        # a tuple parsed by Pydantic Settings.
+        configured_folders = (
+            (certificate_folders,)
+            if isinstance(certificate_folders, str)
+            else certificate_folders
+        )
+        folders = tuple(folder.strip() for folder in configured_folders)
+        if not folders or any(not folder for folder in folders):
+            raise ValueError(
+                "At least one non-empty certificate folder is required."
+            )
         self.transport = transport
-        self.certificate_folder = certificate_folder
+        self.certificate_folders = tuple(dict.fromkeys(folders))
         self.search_parameter = search_parameter
+
+    def _resolve_folder(self, folder: str | None) -> str:
+        if folder is None:
+            return self.certificate_folders[0]
+        if folder not in self.certificate_folders:
+            raise ValueError(f"Unconfigured RA certificate folder: {folder!r}")
+        return folder
 
     async def _fetch_certificate_summary_page(
         self, href: str
@@ -29,28 +49,33 @@ class RAClient:
         response = await self.transport.get(href)
         return parse_page(response, CertificateSummaryDTO)
 
-    async def list_first_summary_page(self) -> Page[CertificateSummaryDTO]:
+    async def list_first_summary_page(
+        self, folder: str | None = None
+    ) -> Page[CertificateSummaryDTO]:
+        selected_folder = self._resolve_folder(folder)
         response = await self.transport.get(
-            "certificates", params={"folder": self.certificate_folder}
+            "certificates", params={"folder": selected_folder}
         )
         return parse_page(response, CertificateSummaryDTO)
 
     async def search_certificates(
-        self, query: str
+        self, query: str, folder: str | None = None
     ) -> Page[CertificateSummaryDTO]:
+        selected_folder = self._resolve_folder(folder)
         response = await self.transport.get(
             "certificates",
             params={
-                "folder": self.certificate_folder,
+                "folder": selected_folder,
                 self.search_parameter: query,
             },
         )
         return parse_page(response, CertificateSummaryDTO)
 
     async def iter_certificate_summary_pages(
-        self,
+        self, folder: str | None = None
     ) -> AsyncIterator[Page[CertificateSummaryDTO]]:
-        first_page = await self.list_first_summary_page()
+        selected_folder = self._resolve_folder(folder)
+        first_page = await self.list_first_summary_page(selected_folder)
         async for page in paginate_pages(
             first_page, self._fetch_certificate_summary_page
         ):

@@ -6,14 +6,14 @@ set -Eeuo pipefail
 umask 022
 
 for command_name in apt-get dpkg-deb python3; do
-  command -v "$command_name" >/dev/null 2>&1 || {
-    printf 'SKIP: required command is missing: %s\n' "$command_name"
-    exit 0
-  }
+    command -v "$command_name" >/dev/null 2>&1 || {
+        printf 'SKIP: required command is missing: %s\n' "$command_name"
+        exit 0
+    }
 done
 if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
-  printf 'SKIP: run this APT fixture test as root.\n'
-  exit 0
+    printf 'SKIP: run this APT fixture test as root.\n'
+    exit 0
 fi
 
 TEST_ROOT="$(mktemp -d /tmp/radp-apt-download-test.XXXXXX)"
@@ -22,16 +22,16 @@ trap cleanup EXIT
 REPO="$TEST_ROOT/repo"
 mkdir -p "$REPO" "$TEST_ROOT/build-dep/DEBIAN" "$TEST_ROOT/build-root/DEBIAN"
 chmod 0755 "$TEST_ROOT/build-dep" "$TEST_ROOT/build-dep/DEBIAN" \
-  "$TEST_ROOT/build-root" "$TEST_ROOT/build-root/DEBIAN"
+    "$TEST_ROOT/build-root" "$TEST_ROOT/build-root/DEBIAN"
 
-cat > "$TEST_ROOT/build-dep/DEBIAN/control" <<'CONTROL'
+cat >"$TEST_ROOT/build-dep/DEBIAN/control" <<'CONTROL'
 Package: radp-apt-fixture-dep
 Version: 1.0
 Architecture: amd64
 Maintainer: RADP Test <radp-test@example.invalid>
 Description: fixture dependency for offline APT verification
 CONTROL
-cat > "$TEST_ROOT/build-root/DEBIAN/control" <<'CONTROL'
+cat >"$TEST_ROOT/build-root/DEBIAN/control" <<'CONTROL'
 Package: radp-apt-fixture-root
 Version: 1.0
 Architecture: amd64
@@ -86,32 +86,32 @@ for name in ("Packages", "Packages.gz"):
 PY
 
 verify_local_only() {
-  local tag="$1"
-  local state="$TEST_ROOT/state-$tag"
-  mkdir -p "$state/lists/partial" "$state/archives/partial"
-  printf 'deb [trusted=yes] file:%s ./\n' "$REPO" > "$state/sources.list"
-  local -a opts=(
-    -o "Dir::Etc::sourcelist=$state/sources.list"
-    -o "Dir::Etc::sourceparts=/dev/null"
-    -o "Dir::State::lists=$state/lists"
-    -o "Dir::State::status=/dev/null"
-    -o "Dir::Cache::pkgcache=$state/pkgcache.bin"
-    -o "Dir::Cache::srcpkgcache=$state/srcpkgcache.bin"
-    -o "Dir::Cache::archives=$state/archives"
-    -o "Dir::Cache::archives::partial=$state/archives/partial"
-    -o "Acquire::Languages=none"
-    -o "APT::Architecture=amd64"
-    -o "APT::Sandbox::User=root"
-  )
-  apt-get "${opts[@]}" update >"$state/update.log" 2>&1
-  DEBIAN_FRONTEND=noninteractive apt-get "${opts[@]}" \
-    --download-only --reinstall --yes --no-install-recommends install \
-    radp-apt-fixture-root=1.0 >"$state/resolve.log" 2>&1
+    local tag="$1"
+    local state="$TEST_ROOT/state-$tag"
+    mkdir -p "$state/lists/partial" "$state/archives/partial"
+    printf 'deb [trusted=yes] file:%s ./\n' "$REPO" >"$state/sources.list"
+    local -a opts=(
+        -o "Dir::Etc::sourcelist=$state/sources.list"
+        -o "Dir::Etc::sourceparts=/dev/null"
+        -o "Dir::State::lists=$state/lists"
+        -o "Dir::State::status=/dev/null"
+        -o "Dir::Cache::pkgcache=$state/pkgcache.bin"
+        -o "Dir::Cache::srcpkgcache=$state/srcpkgcache.bin"
+        -o "Dir::Cache::archives=$state/archives"
+        -o "Dir::Cache::archives::partial=$state/archives/partial"
+        -o "Acquire::Languages=none"
+        -o "APT::Architecture=amd64"
+        -o "APT::Sandbox::User=root"
+    )
+    apt-get "${opts[@]}" update >"$state/update.log" 2>&1
+    DEBIAN_FRONTEND=noninteractive apt-get "${opts[@]}" \
+        --download-only --reinstall --yes --no-install-recommends install \
+        radp-apt-fixture-root=1.0 >"$state/resolve.log" 2>&1
 }
 
 if ! verify_local_only good; then
-  cat "$TEST_ROOT/state-good/update.log" "$TEST_ROOT/state-good/resolve.log" >&2
-  exit 1
+    cat "$TEST_ROOT/state-good/update.log" "$TEST_ROOT/state-good/resolve.log" >&2
+    exit 1
 fi
 
 ###############################################################################
@@ -120,9 +120,9 @@ fi
 ###############################################################################
 rm -f "$REPO/radp-apt-fixture-dep_1.0_amd64.deb"
 if verify_local_only missing-deb; then
-  printf 'FAIL: APT accepted an index entry whose DEB file is missing.\n' >&2
-  cat "$TEST_ROOT/state-missing-deb/resolve.log" >&2
-  exit 1
+    printf 'FAIL: APT accepted an index entry whose DEB file is missing.\n' >&2
+    cat "$TEST_ROOT/state-missing-deb/resolve.log" >&2
+    exit 1
 fi
 
 printf 'PASS: local APT download-only resolution succeeds and detects a missing dependency DEB\n'

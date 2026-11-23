@@ -1,16 +1,15 @@
+import pytest
+
 from radp.cli import build_parser
 
 
-def test_sync_run_accepts_optional_certificate_folder():
+def test_sync_uses_toml_configuration_without_folder_arguments():
     parser = build_parser()
-    args = parser.parse_args(
-        ["sync", "run", "--certificate-folder", "folder/2026"]
-    )
-    assert args.certificate_folder == "folder/2026"
+    args = parser.parse_args(["sync", "run"])
     assert args.handler.__name__ == "synchronize"
 
 
-def test_sync_run_folder_override_is_optional():
+def test_old_folder_override_is_no_longer_accepted():
     parser = build_parser()
-    args = parser.parse_args(["sync", "run"])
-    assert args.certificate_folder is None
+    with pytest.raises(SystemExit):
+        parser.parse_args(["sync", "run", "--certificate-folders", "archive"])

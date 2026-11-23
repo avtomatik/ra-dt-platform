@@ -16,26 +16,32 @@ cp "$SCRIPT_ROOT/lib/common.sh" "$TEST_ROOT/offline/lib/"
 cp "$SCRIPT_ROOT/lib/package-common.sh" "$TEST_ROOT/offline/lib/"
 
 create_stage() {
-  local mode="$1" stage="$2"
-  mkdir -p "$stage"
-  printf 'version: "3.8"\nservices:\n  fixture:\n    image: radp-test:offline\n' > "$stage/docker-compose.yml"
-  printf 'opaque-encrypted-fixture\n' > "$stage/.env.enc"
-  printf '%s\n' "$(printf 'TEST_SECRET=fixture\n' | sha256sum | awk '{print $1}')" > "$stage/.env.sha256"
-  cp "$SCRIPT_ROOT/$mode/install.sh" "$stage/install.sh"
-  cp "$SCRIPT_ROOT/lib/install-common.sh" "$stage/install-common.sh"
-  chmod 0755 "$stage/install.sh" "$stage/install-common.sh"
-  printf 'Astra Linux SE 1.7.8\nlinux/amd64\n' > "$stage/target-platform.txt"
-  printf 'radp-test:offline\n' > "$stage/compose-images.txt"
-  printf 'compose_reference\timage_id\tplatform\trepository_digests\n' > "$stage/image-manifest.tsv"
-  printf 'runtime-requirements=fixture\n' > "$stage/runtime-requirements.txt"
-  printf 'mode=%s\n' "$mode" > "$stage/bundle-mode.txt"
-  if [[ "$mode" == "partial" ]]; then
-    printf 'Required Docker/Compose host packages are provisioned externally.\n' > "$stage/HOST-REQUIREMENTS.txt"
-  else
-    printf 'docker_package=docker.io\ndocker_version=25.0.5.astra3+ci24\ncompose_package=docker-compose\ncompose_version=1.29.2-1astra.se1+ci1+b2\n' > "$stage/os-packages.txt"
-  fi
+    local mode="$1" stage="$2"
+    mkdir -p "$stage"
+    printf 'version: "3.8"\nservices:\n  fixture:\n    image: radp-test:offline\n' >"$stage/docker-compose.yml"
+    printf 'opaque-encrypted-fixture\n' >"$stage/.env.enc"
+    printf 'opaque-encrypted-compose-fixture\n' >"$stage/.env.compose.enc"
+    mkdir -p "$stage/config"
+    printf 'certificate_folders = ["default"]\n' > "$stage/config/certificate-folders.toml"
+    printf 'services: {}\n' > "$stage/docker-compose.production.yml"
+    cp "$SCRIPT_ROOT/../ops/lib/deployment-env.sh" "$stage/deployment-env.sh"
+    printf '%s\n' "$(printf 'TEST_SECRET=fixture\n' | sha256sum | awk '{print $1}')" >"$stage/.env.sha256"
+    printf '%s\n' "$(printf 'DEPLOY_ENVIRONMENT=test\n' | sha256sum | awk '{print $1}')" >"$stage/.env.compose.sha256"
+    cp "$SCRIPT_ROOT/$mode/install.sh" "$stage/install.sh"
+    cp "$SCRIPT_ROOT/lib/install-common.sh" "$stage/install-common.sh"
+    chmod 0755 "$stage/install.sh" "$stage/install-common.sh"
+    printf 'Astra Linux SE 1.7.8\nlinux/amd64\n' >"$stage/target-platform.txt"
+    printf 'radp-test:offline\n' >"$stage/compose-images.txt"
+    printf 'compose_reference\timage_id\tplatform\trepository_digests\n' >"$stage/image-manifest.tsv"
+    printf 'runtime-requirements=fixture\n' >"$stage/runtime-requirements.txt"
+    printf 'mode=%s\n' "$mode" >"$stage/bundle-mode.txt"
+    if [[ "$mode" == "partial" ]]; then
+        printf 'Required Docker/Compose host packages are provisioned externally.\n' >"$stage/HOST-REQUIREMENTS.txt"
+    else
+        printf 'docker_package=docker.io\ndocker_version=25.0.5.astra3+ci24\ncompose_package=docker-compose\ncompose_version=1.29.2-1astra.se1+ci1+b2\n' >"$stage/os-packages.txt"
+    fi
 
-  python3 - "$stage" <<'PY'
+    python3 - "$stage" <<'PY'
 import hashlib
 import io
 import json
@@ -76,12 +82,12 @@ mkdir -p "$TEST_ROOT/release/radp-offline-full/docker-install/debs"
 FULL_STAGE="$TEST_ROOT/release/radp-offline-full"
 create_stage full "$FULL_STAGE"
 mkdir -p "$FULL_STAGE/docker-install/debs"
-printf 'Package: docker.io\nVersion: 25.0.5.astra3+ci24\nArchitecture: amd64\n' > "$FULL_STAGE/docker-install/debs/Packages"
-gzip -c "$FULL_STAGE/docker-install/debs/Packages" > "$FULL_STAGE/docker-install/debs/Packages.gz"
-printf 'Origin: RADP fixture\n' > "$FULL_STAGE/docker-install/debs/Release"
-printf 'package\tversion\tarchitecture\tfilename\ndocker.io\t25.0.5.astra3+ci24\tamd64\tdocker.io.deb\n' > "$FULL_STAGE/docker-install/package-inventory.tsv"
-printf 'deb https://example.invalid/astra frozen main\n' > "$FULL_STAGE/docker-install/frozen-sources.list"
-printf 'fixture deb archive\n' > "$FULL_STAGE/docker-install/debs/docker.io.deb"
+printf 'Package: docker.io\nVersion: 25.0.5.astra3+ci24\nArchitecture: amd64\n' >"$FULL_STAGE/docker-install/debs/Packages"
+gzip -c "$FULL_STAGE/docker-install/debs/Packages" >"$FULL_STAGE/docker-install/debs/Packages.gz"
+printf 'Origin: RADP fixture\n' >"$FULL_STAGE/docker-install/debs/Release"
+printf 'package\tversion\tarchitecture\tfilename\ndocker.io\t25.0.5.astra3+ci24\tamd64\tdocker.io.deb\n' >"$FULL_STAGE/docker-install/package-inventory.tsv"
+printf 'deb https://example.invalid/astra frozen main\n' >"$FULL_STAGE/docker-install/frozen-sources.list"
+printf 'fixture deb archive\n' >"$FULL_STAGE/docker-install/debs/docker.io.deb"
 
 bash -c '
   set -Eeuo pipefail
@@ -91,11 +97,11 @@ bash -c '
 ' _ "$TEST_ROOT"
 
 for mode in full partial; do
-  archive="$TEST_ROOT/release/radp-offline-$mode.zip"
-  checksum="$archive.sha256"
-  [[ -s "$archive" && -s "$checksum" ]]
-  (cd "$TEST_ROOT/release" && sha256sum -c "radp-offline-$mode.zip.sha256")
-  python3 - "$archive" "$mode" <<'PY'
+    archive="$TEST_ROOT/release/radp-offline-$mode.zip"
+    checksum="$archive.sha256"
+    [[ -s "$archive" && -s "$checksum" ]]
+    (cd "$TEST_ROOT/release" && sha256sum -c "radp-offline-$mode.zip.sha256")
+    python3 - "$archive" "$mode" <<'PY'
 from pathlib import PurePosixPath
 from zipfile import ZipFile
 import sys
@@ -104,7 +110,7 @@ prefix = f"radp-offline-{mode}/"
 with ZipFile(archive) as zf:
     names = zf.namelist()
     assert all(name.startswith(prefix) for name in names)
-    assert not any(PurePosixPath(name).name == ".env" for name in names)
+    assert not any(PurePosixPath(name).name in {".env", ".env.compose"} for name in names)
     assert zf.testzip() is None
     for name in (prefix + "install.sh", prefix + "install-common.sh"):
         assert ((zf.getinfo(name).external_attr >> 16) & 0o111) != 0

@@ -41,7 +41,8 @@ offline/
   administrator from their verified package collection.
 
 Both modes package the same application assets, Compose file, prebuilt images,
-encrypted `.env`, an internal `SHA256SUMS` manifest, and target-platform metadata.
+separately encrypted `.env` and `.env.compose`, the certificate-folder TOML file,
+the production Compose overlay, an internal `SHA256SUMS` manifest, and target-platform metadata.
 Each archive also has a portable adjacent `.zip.sha256` sidecar. The generated
 archives are separate:
 
@@ -62,7 +63,34 @@ Run preparation on a connected Astra Linux SE 1.7.8 amd64 host. It must have:
 
 The project layout expected by these scripts is the one from the existing RADP
 repository: `pyproject.toml`, `uv.lock`, `docker/Dockerfile`,
-`docker-compose.yml`, `.env`, and the `radp/`, `data/`, and `html/` directories.
+`docker-compose.yml`, `docker-compose.production.yml`, `.env`, `.env.compose`,
+`ops/lib/deployment-env.sh`, `config/certificate-folders.toml`, and the `radp/`,
+`data/`, and `html/` directories.
+
+## Configuration before preparation
+
+Create **both** files; never concatenate them:
+
+```bash
+cp .env.example .env
+cp .env.compose.production.example .env.compose  # customer RA deployment
+# For local/emulator tests use .env.compose.example instead.
+cp config/certificate-folders.toml.example config/certificate-folders.toml
+./ops/scripts/compose.sh config --quiet
+```
+
+In production, set `DEPLOY_RA_HOST_IP` in `.env.compose` to the customer RA
+IPv4 address and `RADP_REMOTE_RA__BASE_URL` in `.env` to the RA URL. The host
+alias in the overlay is extracted from that URL. Both environment files are
+protected by separate OpenSSL encrypted files, verified before installation
+and recreated as 0600 files. Neither plaintext environment file appears in
+the ZIP. The folder TOML is a required runtime asset.
+
+The bundle records the production/test mode from `.env.compose`; **verify the
+correct mode and remote RA address before preparing the customer bundle**.
+The wrappers use single-file-independent interpolation even with legacy Compose
+1.29 and verify the merged Compose configuration. A full offline install
+needs an acceptance check on the actual customer machine.
 
 ## Build the full bundle
 
@@ -181,7 +209,7 @@ directory. The final `.env` creation is atomic and no-clobber. They do not run
 load the packaged images, validate Compose configuration, check every Compose
 reference against `images.tar` during preparation/package, compare loaded image IDs
 with the recorded manifest during installation, start services without building
-images, and check that TCP port 8000 accepts connections.
+images, and check that TCP port 9000 accepts connections.
 
 ## Reproducibility and scope
 

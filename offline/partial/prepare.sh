@@ -24,10 +24,10 @@ source "$LIB_DIR/common.sh"
 source "$LIB_DIR/prepare-runtime.sh"
 
 fail_trap() {
-  local rc=$?
-  if ((rc != 0)); then
-    printf '\nPARTIAL PREPARATION FAILED (exit %s, line %s).\n' "$rc" "${BASH_LINENO[0]:-unknown}" >&2
-  fi
+    local rc=$?
+    if ((rc != 0)); then
+        printf '\nPARTIAL PREPARATION FAILED (exit %s, line %s).\n' "$rc" "${BASH_LINENO[0]:-unknown}" >&2
+    fi
 }
 trap fail_trap EXIT
 
@@ -50,14 +50,14 @@ radp_verify_project_layout "$ROOT"
 ###############################################################################
 radp_log "Preparing application images, runtime assets and encrypted environment (no DEBs)."
 RADP_EXPECTED_DOCKER_VERSION="$EXPECTED_DOCKER_VERSION" \
-RADP_EXPECTED_COMPOSE_VERSION="$EXPECTED_COMPOSE_VERSION" \
-  radp_prepare_runtime_assets "$ROOT" "$STAGE" partial \
+    RADP_EXPECTED_COMPOSE_VERSION="$EXPECTED_COMPOSE_VERSION" \
+    radp_prepare_runtime_assets "$ROOT" "$STAGE" partial \
     "$SCRIPT_DIR/install.sh" "$LIB_DIR/install-common.sh"
 
 ###############################################################################
 # Keep the requirement sheet in the bundle (runtime prep does not overwrite it).
 ###############################################################################
-cat > "$STAGE/HOST-REQUIREMENTS.txt" <<EOF_HOST
+cat >"$STAGE/HOST-REQUIREMENTS.txt" <<EOF_HOST
 Target OS: Astra Linux SE 1.7.8
 Target architecture: amd64
 Required service: Docker Engine daemon (systemd service: docker)
@@ -79,5 +79,5 @@ EOF_HOST
 
 printf '\nPARTIAL PREPARATION SUCCESS\n'
 printf 'Staging: %s\n.deb packages: 0 (intentionally omitted)\nCompose images: %s\n' \
-  "$STAGE" "$(wc -l < "$STAGE/compose-images.txt")"
+    "$STAGE" "$(wc -l <"$STAGE/compose-images.txt")"
 printf 'Next: sudo %s/package.sh\n' "$SCRIPT_DIR"

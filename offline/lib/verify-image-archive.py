@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
 """Verify that Compose image references are present in a Docker image archive."""
-
-from __future__ import annotations
-
 import csv
 import hashlib
 import json
@@ -34,7 +31,6 @@ def load_expected(
         fail("compose-images.txt is empty")
     if len(references) != len(set(references)):
         fail("compose-images.txt contains duplicate references")
-
     expected: dict[str, dict[str, str]] = {}
     try:
         with manifest_file.open("r", encoding="utf-8", newline="") as stream:
@@ -70,7 +66,6 @@ def load_expected(
                 }
     except OSError as exc:
         fail(f"cannot read {manifest_file}: {exc}")
-
     if set(expected) != set(references):
         missing = sorted(set(references) - set(expected))
         extra = sorted(set(expected) - set(references))
@@ -104,10 +99,8 @@ def verify_archive(
                 manifest = json.load(manifest_stream)
             except (json.JSONDecodeError, UnicodeDecodeError) as exc:
                 fail(f"images.tar manifest.json is invalid: {exc}")
-
             if not isinstance(manifest, list) or not manifest:
                 fail("images.tar manifest.json is not a non-empty image list")
-
             exported: dict[str, set[str]] = {}
             for index, item in enumerate(manifest):
                 if not isinstance(item, dict):
@@ -136,10 +129,8 @@ def verify_archive(
                 ):
                     fail(f"invalid RepoTags value at manifest index {index}")
                 exported[image_id] = set(tags) | exported.get(image_id, set())
-
     except (OSError, tarfile.TarError) as exc:
         fail(f"cannot inspect Docker image archive {archive_path}: {exc}")
-
     exported_ids = set(exported)
     for reference, row in expected.items():
         image_id = row["image_id"]
@@ -147,10 +138,8 @@ def verify_archive(
             fail(
                 f"Compose image {reference} ({image_id}) is not present in images.tar"
             )
-
         if reference in exported[image_id]:
             continue
-
         recorded_digests = set(
             filter(None, row["repository_digests"].split(";"))
         )
@@ -174,7 +163,6 @@ def main() -> int:
             file=sys.stderr,
         )
         return 2
-
     archive_path, compose_path, manifest_path = map(Path, sys.argv[1:])
     expected = load_expected(compose_path, manifest_path)
     verify_archive(archive_path, expected)

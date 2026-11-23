@@ -1,8 +1,11 @@
+import logging
+
 from cryptography import x509
 from cryptography.exceptions import UnsupportedAlgorithm
 from cryptography.hazmat.primitives import hashes, serialization
 
 from radp.application.ports.oid_repository import OIDRepositoryPort
+from radp.domain.certificate.template import decode_microsoft_template_name
 from radp.domain.models.attribute import DistinguishedNameAttribute
 from radp.domain.models.certificate import Certificate, CertificateLifecycle
 from radp.domain.models.extension import Extension
@@ -10,9 +13,12 @@ from radp.domain.models.metadata import CertificateMetadata
 from radp.domain.models.name import DistinguishedName
 from radp.domain.models.public_key import PublicKey
 from radp.domain.models.x509 import X509Certificate
+from radp.domain.oid import OID
 from radp.infrastructure.ra_api.dto.certificate import CertificateDetailDTO
 
 from .decoder import CertificateDecoder
+
+logger = logging.getLogger(__name__)
 
 
 class CertificateFactory:
@@ -126,9 +132,33 @@ class CertificateFactory:
         try:
             extensions = cert.extensions
         except (ValueError, UnsupportedAlgorithm):
+            logger.warning(
+                "Cannot decode extensions of certificate serial=%s; "
+                "template metadata may be incomplete",
+                getattr(cert, "serial_number", "unknown"),
+                exc_info=True,
+            )
             return result
         for extension in extensions:
             registry = self._resolve_oid(extension.oid.dotted_string)
+            template_oid = None
+            template_name = None
+            if isinstance(extension.value, x509.MSCertificateTemplate):
+                # V2 stores a template OID, not its friendly display name.
+                # Resolve it only when the local registry has been curated.
+                template_oid = extension.value.template_id.dotted_string
+                template_definition = self._resolve_oid(template_oid)
+                template_name = (
+                    template_definition.name or template_definition.description
+                )
+            elif (
+                extension.oid.dotted_string
+                == OID.CERTIFICATE_TEMPLATE_NAME.value
+            ):
+                # V1 carries the template's human-readable CN directly in the
+                # extension payload, so it does not need an OID lookup.
+                raw_value = getattr(extension.value, "value", None)
+                template_name = decode_microsoft_template_name(raw_value)
             result.append(
                 Extension(
                     oid=extension.oid.dotted_string,
@@ -136,6 +166,8 @@ class CertificateFactory:
                     name=registry.name if registry else None,
                     critical=extension.critical,
                     value=str(extension.value),
+                    template_oid=template_oid,
+                    template_name=template_name,
                 )
             )
         return result

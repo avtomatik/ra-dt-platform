@@ -1,5 +1,7 @@
 import asyncio
 
+import pytest
+
 from radp.infrastructure.ra_api.client import RAClient
 from radp.infrastructure.transport.response import HTTPResponse
 from radp.infrastructure.transport.url import build_url
@@ -19,9 +21,11 @@ class FakeTransport:
         )
 
 
-def test_collection_endpoint_receives_configured_folder():
+def test_collection_endpoint_receives_first_configured_folder_by_default():
     transport = FakeTransport()
-    client = RAClient(transport, certificate_folder="production folder/2026")
+    client = RAClient(
+        transport, certificate_folders=("production folder/2026", "archive")
+    )
     page = asyncio.run(client.list_first_summary_page())
     assert page.items == []
     assert transport.calls == [
@@ -29,9 +33,16 @@ def test_collection_endpoint_receives_configured_folder():
     ]
 
 
+def test_collection_endpoint_can_select_configured_folder():
+    transport = FakeTransport()
+    client = RAClient(transport, certificate_folders=("production", "archive"))
+    asyncio.run(client.list_first_summary_page("archive"))
+    assert transport.calls == [("certificates", {"folder": "archive"}, None)]
+
+
 def test_search_endpoint_receives_configured_folder():
     transport = FakeTransport()
-    client = RAClient(transport, certificate_folder="production-folder")
+    client = RAClient(transport, certificate_folders=("production-folder",))
     asyncio.run(client.search_certificates("Alice"))
     assert transport.calls == [
         (
@@ -40,6 +51,12 @@ def test_search_endpoint_receives_configured_folder():
             None,
         )
     ]
+
+
+def test_client_rejects_unconfigured_folder():
+    client = RAClient(FakeTransport(), certificate_folders=("production",))
+    with pytest.raises(ValueError, match="Unconfigured"):
+        asyncio.run(client.list_first_summary_page("archive"))
 
 
 def test_folder_is_url_encoded_as_query_parameter():
@@ -83,9 +100,19 @@ def test_summary_status_is_normalized_without_changing_full_list_payload():
                 json_data=payload,
             )
 
-    client = RAClient(PayloadTransport(), certificate_folder="production")
+    client = RAClient(PayloadTransport(), certificate_folders=("production",))
     first_summary_page = asyncio.run(client.list_first_summary_page())
     assert first_summary_page.items[0].status is CertificateStatus.VALID
     assert first_summary_page.items[0].serial_number == (
         "019D72F959835E028A425FE059019C9F5E"
     )
+
+
+def test_direct_single_folder_string_is_treated_as_one_folder():
+    transport = FakeTransport()
+    client = RAClient(transport, certificate_folders="production")
+    asyncio.run(client.list_first_summary_page())
+    assert client.certificate_folders == ("production",)
+    assert transport.calls == [
+        ("certificates", {"folder": "production"}, None)
+    ]

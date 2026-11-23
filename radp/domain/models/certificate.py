@@ -1,3 +1,4 @@
+import re
 from datetime import datetime
 from enum import StrEnum
 from uuid import UUID
@@ -10,20 +11,38 @@ from .x509 import X509Certificate
 
 
 class CertificateStatus(StrEnum):
-    """Canonical status values used by the domain and persistence layer."""
+    """Canonical certificate status and revocation reason values."""
 
-    VALID = "VALID"
-    REVOKED = "REVOKED"
+    AFFILIATION_CHANGED = "AFFILIATION_CHANGED"
+    CA_COMPROMISE = "CA_COMPROMISE"
+    CESSATION_OF_OPERATION = "CESSATION_OF_OPERATION"
     EXPIRED = "EXPIRED"
+    HOLD = "HOLD"
+    KEY_COMPROMISE = "KEY_COMPROMISE"
+    KEY_EXPIRED = "KEY_EXPIRED"
+    NOT_YET_VALID = "NOT_YET_VALID"
+    REVOKED = "REVOKED"
+    SUPERSEDED = "SUPERSEDED"
+    VALID = "VALID"
     UNKNOWN = "UNKNOWN"
+    UNSPECIFIED = "UNSPECIFIED"
 
     @classmethod
     def _missing_(cls, value: object):
-        # The RA API currently returns values such as "Valid". Normalize
-        # casing and surrounding whitespace at the DTO/domain boundary.
-        if isinstance(value, str):
-            return cls._value2member_map_.get(value.strip().upper())
-        return None
+        """Normalize external status representations."""
+        if not isinstance(value, str):
+            return None
+        normalized = value.strip()
+        if not normalized:
+            return None
+        # Separate acronym prefixes from subsequent PascalCase words.
+        normalized = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", normalized)
+        # Separate camelCase and PascalCase word boundaries.
+        normalized = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", normalized)
+        # Normalize whitespace, hyphens, and repeated underscores.
+        normalized = re.sub(r"[\s_-]+", "_", normalized)
+        normalized = normalized.strip("_").upper()
+        return cls._value2member_map_.get(normalized)
 
 
 class CertificateLifecycle(DomainModel):

@@ -1,0 +1,8 @@
+# Applied only when DEPLOY_ENVIRONMENT=production.
+# The hostname comes from RADP_REMOTE_RA__BASE_URL, preventing alias drift.
+version: "2.4"
+
+services:
+  platform:
+    extra_hosts:
+      - "${DEPLOY_RA_HOSTNAME:?Derived from RADP_REMOTE_RA__BASE_URL}:${DEPLOY_RA_HOST_IP:?Set DEPLOY_RA_HOST_IP in .env.compose}"

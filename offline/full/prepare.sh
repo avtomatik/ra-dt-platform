@@ -27,10 +27,10 @@ source "$LIB_DIR/common.sh"
 source "$LIB_DIR/prepare-runtime.sh"
 
 fail_trap() {
-  local rc=$?
-  if ((rc != 0)); then
-    printf '\nFULL PREPARATION FAILED (exit %s, line %s).\n' "$rc" "${BASH_LINENO[0]:-unknown}" >&2
-  fi
+    local rc=$?
+    if ((rc != 0)); then
+        printf '\nFULL PREPARATION FAILED (exit %s, line %s).\n' "$rc" "${BASH_LINENO[0]:-unknown}" >&2
+    fi
 }
 trap fail_trap EXIT
 
@@ -52,7 +52,7 @@ radp_check_target_platform "$STAGE/build-os-release"
 radp_verify_project_layout "$ROOT"
 
 if [[ ! -s "$FROZEN_LIST" ]]; then
-  cat > "$FROZEN_LIST" <<'REPOS'
+    cat >"$FROZEN_LIST" <<'REPOS'
 deb https://dl.astralinux.ru/astra/frozen/1.7_x86-64/1.7.8/repository-base/ 1.7_x86-64 main contrib non-free
 deb https://dl.astralinux.ru/astra/frozen/1.7_x86-64/1.7.8/repository-update/ 1.7_x86-64 main contrib non-free
 REPOS
@@ -63,10 +63,10 @@ mapfile -t active_sources < <(sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' 
 base_source_count=0
 update_source_count=0
 for source_line in "${active_sources[@]}"; do
-  [[ "$source_line" =~ ^deb[[:space:]]+https://dl\.astralinux\.ru/astra/frozen/1\.7_x86-64/1\.7\.8/repository-(base|update)/[[:space:]]+1\.7_x86-64[[:space:]]+main[[:space:]]+contrib[[:space:]]+non-free$ ]] \
-    || radp_die "Unexpected repository in frozen APT list: $source_line"
-  [[ "$source_line" == *repository-base/* ]] && ((base_source_count+=1))
-  [[ "$source_line" == *repository-update/* ]] && ((update_source_count+=1))
+    [[ "$source_line" =~ ^deb[[:space:]]+https://dl\.astralinux\.ru/astra/frozen/1\.7_x86-64/1\.7\.8/repository-(base|update)/[[:space:]]+1\.7_x86-64[[:space:]]+main[[:space:]]+contrib[[:space:]]+non-free$ ]] ||
+        radp_die "Unexpected repository in frozen APT list: $source_line"
+    [[ "$source_line" == *repository-base/* ]] && ((base_source_count += 1))
+    [[ "$source_line" == *repository-update/* ]] && ((update_source_count += 1))
 done
 [[ "$base_source_count" -eq 1 && "$update_source_count" -eq 1 ]] || radp_die "Frozen APT list must include base and update exactly once."
 
@@ -78,18 +78,18 @@ done
 rm -rf -- "$APT_LISTS"
 mkdir -p "$APT_LISTS/partial" "$DEBS/partial"
 APT_OPTS=(
-  -o "Dir::Etc::sourcelist=$FROZEN_LIST"
-  -o "Dir::Etc::sourceparts=/dev/null"
-  -o "Dir::State::lists=$APT_LISTS"
-  -o "Dir::State::status=/dev/null"
-  -o "Dir::Cache::pkgcache=$APT_LISTS/pkgcache.bin"
-  -o "Dir::Cache::srcpkgcache=$APT_LISTS/srcpkgcache.bin"
-  -o "Dir::Cache::archives=$DEBS"
-  -o "Dir::Cache::archives::partial=$DEBS/partial"
-  -o "APT::Architecture=amd64"
-  -o "APT::Sandbox::User=root"
-  -o "Acquire::Retries=2"
-  -o "Acquire::Languages=none"
+    -o "Dir::Etc::sourcelist=$FROZEN_LIST"
+    -o "Dir::Etc::sourceparts=/dev/null"
+    -o "Dir::State::lists=$APT_LISTS"
+    -o "Dir::State::status=/dev/null"
+    -o "Dir::Cache::pkgcache=$APT_LISTS/pkgcache.bin"
+    -o "Dir::Cache::srcpkgcache=$APT_LISTS/srcpkgcache.bin"
+    -o "Dir::Cache::archives=$DEBS"
+    -o "Dir::Cache::archives::partial=$DEBS/partial"
+    -o "APT::Architecture=amd64"
+    -o "APT::Sandbox::User=root"
+    -o "Acquire::Retries=2"
+    -o "Acquire::Languages=none"
 )
 
 radp_log "Updating package metadata from the frozen Astra 1.7.8 repositories."
@@ -98,14 +98,14 @@ apt-get "${APT_OPTS[@]}" update
 engine_candidate="$(apt-cache "${APT_OPTS[@]}" policy "$ENGINE_PKG" | awk '/Candidate:/ {print $2}')"
 compose_candidate="$(apt-cache "${APT_OPTS[@]}" policy "$COMPOSE_PKG" | awk '/Candidate:/ {print $2}')"
 [[ "$engine_candidate" == "$ENGINE_VER" ]] || radp_die \
-  "$ENGINE_PKG candidate is '$engine_candidate'; expected pinned version $ENGINE_VER."
+    "$ENGINE_PKG candidate is '$engine_candidate'; expected pinned version $ENGINE_VER."
 [[ "$compose_candidate" == "$COMPOSE_VER" ]] || radp_die \
-  "$COMPOSE_PKG candidate is '$compose_candidate'; expected pinned version $COMPOSE_VER."
+    "$COMPOSE_PKG candidate is '$compose_candidate'; expected pinned version $COMPOSE_VER."
 
 radp_log "Downloading the complete dependency closure from frozen repositories."
 DEBIAN_FRONTEND=noninteractive apt-get "${APT_OPTS[@]}" \
-  --download-only --reinstall --yes --no-install-recommends install \
-  "$ENGINE_PKG=$ENGINE_VER" "$COMPOSE_PKG=$COMPOSE_VER" openssl ca-certificates
+    --download-only --reinstall --yes --no-install-recommends install \
+    "$ENGINE_PKG=$ENGINE_VER" "$COMPOSE_PKG=$COMPOSE_VER" openssl ca-certificates
 
 shopt -s nullglob
 mapfile -t deb_archives < <(find "$DEBS" -maxdepth 1 -type f -name '*.deb' -print | LC_ALL=C sort)
@@ -228,32 +228,32 @@ VERIFY_STATE="$(mktemp -d /tmp/radp-offline-apt-verify.XXXXXX)"
 trap 'rc=$?; rm -rf -- "$VERIFY_STATE"; if ((rc != 0)); then printf "\nFULL PREPARATION FAILED (exit %s, line %s).\n" "$rc" "$LINENO" >&2; fi' EXIT
 mkdir -p "$VERIFY_STATE/lists/partial" "$VERIFY_STATE/archives/partial"
 DEBS_URI="$(printf '%s' "$DEBS" | sed 's/ /%20/g')"
-printf 'deb [trusted=yes] file:%s ./\n' "$DEBS_URI" > "$VERIFY_STATE/sources.list"
+printf 'deb [trusted=yes] file:%s ./\n' "$DEBS_URI" >"$VERIFY_STATE/sources.list"
 LOCAL_APT_OPTS=(
-  -o "Dir::Etc::sourcelist=$VERIFY_STATE/sources.list"
-  -o "Dir::Etc::sourceparts=/dev/null"
-  -o "Dir::State::lists=$VERIFY_STATE/lists"
-  -o "Dir::State::status=/dev/null"
-  -o "Dir::Cache::pkgcache=$VERIFY_STATE/pkgcache.bin"
-  -o "Dir::Cache::srcpkgcache=$VERIFY_STATE/srcpkgcache.bin"
-  -o "Dir::Cache::archives=$VERIFY_STATE/archives"
-  -o "Dir::Cache::archives::partial=$VERIFY_STATE/archives/partial"
-  -o "APT::Architecture=amd64"
-  -o "APT::Sandbox::User=root"
-  -o "Acquire::Languages=none"
+    -o "Dir::Etc::sourcelist=$VERIFY_STATE/sources.list"
+    -o "Dir::Etc::sourceparts=/dev/null"
+    -o "Dir::State::lists=$VERIFY_STATE/lists"
+    -o "Dir::State::status=/dev/null"
+    -o "Dir::Cache::pkgcache=$VERIFY_STATE/pkgcache.bin"
+    -o "Dir::Cache::srcpkgcache=$VERIFY_STATE/srcpkgcache.bin"
+    -o "Dir::Cache::archives=$VERIFY_STATE/archives"
+    -o "Dir::Cache::archives::partial=$VERIFY_STATE/archives/partial"
+    -o "APT::Architecture=amd64"
+    -o "APT::Sandbox::User=root"
+    -o "Acquire::Languages=none"
 )
 apt-get "${LOCAL_APT_OPTS[@]}" update
 DEBIAN_FRONTEND=noninteractive apt-get "${LOCAL_APT_OPTS[@]}" \
-  --download-only --reinstall --yes --no-install-recommends install \
-  "$ENGINE_PKG=$ENGINE_VER" "$COMPOSE_PKG=$COMPOSE_VER" openssl ca-certificates \
-  || radp_die "The bundled DEB repository cannot satisfy the requested Docker/Compose/OpenSSL/CA-certificate dependency set."
+    --download-only --reinstall --yes --no-install-recommends install \
+    "$ENGINE_PKG=$ENGINE_VER" "$COMPOSE_PKG=$COMPOSE_VER" openssl ca-certificates ||
+    radp_die "The bundled DEB repository cannot satisfy the requested Docker/Compose/OpenSSL/CA-certificate dependency set."
 radp_log "Local-only APT dependency verification passed (download-only; dpkg was not invoked)."
 rm -rf -- "$VERIFY_STATE"
 trap fail_trap EXIT
 
 cp "$FROZEN_LIST" "$STAGE/docker-install/frozen-sources.list"
 
-cat > "$STAGE/os-packages.txt" <<EOF_PACKAGES
+cat >"$STAGE/os-packages.txt" <<EOF_PACKAGES
 docker_package=$ENGINE_PKG
 docker_version=$ENGINE_VER
 compose_package=$COMPOSE_PKG
@@ -262,9 +262,9 @@ EOF_PACKAGES
 
 radp_log "Preparing application images, runtime assets and encrypted environment."
 radp_prepare_runtime_assets "$ROOT" "$STAGE" full \
-  "$SCRIPT_DIR/install.sh" "$LIB_DIR/install-common.sh"
+    "$SCRIPT_DIR/install.sh" "$LIB_DIR/install-common.sh"
 
 printf '\nFULL PREPARATION SUCCESS\n'
 printf 'Staging: %s\n.deb packages: %s\nCompose images: %s\n' \
-  "$STAGE" "${#deb_archives[@]}" "$(wc -l < "$STAGE/compose-images.txt")"
+    "$STAGE" "${#deb_archives[@]}" "$(wc -l <"$STAGE/compose-images.txt")"
 printf 'Package index: %s/Packages\nNext: sudo %s/package.sh\n' "$DEBS" "$SCRIPT_DIR"

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}RADP — Управление сертификатами{% endblock %}
+
+{% block content %}
+  <section class="page-intro" aria-labelledby="page-title">
+    <p class="eyebrow">CERTIFICATE OPERATIONS</p>
+    <h1 id="page-title">Управление сертификатами</h1>
+    <p class="lead">Просмотр локального реестра и формирование отчётов по сертификатам.</p>
+  </section>
+
+  <section class="content-section" aria-labelledby="preview-title">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">ОБЗОР</p>
+        <h2 id="preview-title">Просмотр данных</h2>
+      </div>
+    </div>
+    <div class="action-grid action-grid-single">
+      <a class="action-card action-card-primary" href="{{ url_for('preview') }}">
+        <span class="action-icon" aria-hidden="true">⌕</span>
+        <span class="action-copy">
+          <strong>Предварительный просмотр</strong>
+          <span>Открыть первые записи отчёта из локальной базы</span>
+        </span>
+        <span class="action-arrow" aria-hidden="true">→</span>
+      </a>
+    </div>
+  </section>
+
+  <section class="content-section" aria-labelledby="export-title">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">ЭКСПОРТ</p>
+        <h2 id="export-title">Отчёты Excel</h2>
+      </div>
+      <span class="section-note">Формат XLSX</span>
+    </div>
+    <div class="action-grid">
+      <a class="action-card" href="{{ url_for('export_certificates') }}?status=ALL">
+        <span class="action-icon" aria-hidden="true">▤</span>
+        <span class="action-copy">
+          <strong>Все сертификаты</strong>
+          <span>Выгрузить сертификаты независимо от статуса</span>
+          <code>status=ALL</code>
+        </span>
+        <span class="action-arrow" aria-hidden="true">↓</span>
+      </a>
+      <a class="action-card" href="{{ url_for('export_certificates') }}?status=VALID">
+        <span class="action-icon" aria-hidden="true">✓</span>
+        <span class="action-copy">
+          <strong>Действительные сертификаты</strong>
+          <span>Выгрузить сертификаты со статусом VALID, не истёкшие на дату отчёта</span>
+          <code>status=VALID</code>
+        </span>
+        <span class="action-arrow" aria-hidden="true">↓</span>
+      </a>
+    </div>
+  </section>
+
+  <p class="help-text">
+    Дополнительные фильтры доступны через параметры <code>gid</code> и
+    <code>as_of_date</code> в адресе предварительного просмотра или экспорта.
+  </p>
+{% endblock %}

@@ -9,7 +9,7 @@ TEST_DIR="$OFFLINE_DIR/tests"
 
 printf '[tests] Checking Bash syntax...\n'
 while IFS= read -r -d '' script; do
-  bash -n "$script"
+    bash -n "$script"
 done < <(find "$OFFLINE_DIR" -type f -name '*.sh' -print0 | LC_ALL=C sort -z)
 
 printf '[tests] Checking Python syntax...\n'
@@ -27,6 +27,9 @@ python3 "$TEST_DIR/test_verify_image_archive.py"
 
 printf '[tests] Checking FULL/PARTIAL package creation...\n'
 "$TEST_DIR/test_package_builder.sh"
+
+printf '[tests] Checking two-file offline encryption/decryption...\n'
+"$TEST_DIR/test_two_env_decrypt.sh"
 
 printf '[tests] Checking isolated local APT download-only resolution...\n'
 "$TEST_DIR/test_local_apt_download_only.sh"
