@@ -3,13 +3,15 @@ set -Eeuo pipefail
 ###############################################################################
 # Resolve operational and application directories.
 ###############################################################################
-OPS_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-PROJECT_DIR="${RADP_PROJECT_DIR:-$(cd -- "$OPS_DIR/.." && pwd)}"
+OPS_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
+PROJECT_DIR="${RADP_PROJECT_DIR:-$(cd -- "$OPS_DIR/.." && pwd -P)}"
 ###############################################################################
 # Project configuration.
 ###############################################################################
 APP_SERVICE="${RADP_APP_SERVICE:-platform}"
-HEALTH_URL="${RADP_HEALTH_URL:-http://127.0.0.1:8000/health}"
+APP_URL="${RADP_APP_URL:-http://127.0.0.1:9000}"
+APP_URL="${APP_URL%/}"
+HEALTH_URL="${RADP_HEALTH_URL:-${APP_URL}/health}"
 SHOW_LOGS=false
 LOG_TAIL=30
 FAILURES=0
@@ -24,6 +26,7 @@ Environment overrides:
   RADP_PROJECT_DIR
   RADP_APP_SERVICE
   RADP_HEALTH_URL
+  RADP_APP_URL
 EOF
 }
 ok() {
@@ -207,6 +210,6 @@ else
     echo "RADP requires investigation."
     echo
     echo "Suggested next command:"
-    echo "  ./status.sh --logs"
+    echo "  ./ops/scripts/status.sh --logs"
     exit 1
 fi

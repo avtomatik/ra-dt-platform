@@ -14,14 +14,6 @@ async def list_first_page(
     return page.model_dump(by_alias=True)
 
 
-@router.get("/certificates/{certificate_id}")
-async def get_certificate(
-    certificate_id: str, runtime: Container = Depends(get_container)
-):
-    certificate = await runtime.client.get_certificate(certificate_id)
-    return certificate
-
-
 @router.get("/certificates/search")
 async def search_certificates(
     q: str,
@@ -30,3 +22,11 @@ async def search_certificates(
 ):
     certificates = await runtime.client.search_certificates(q, folder)
     return certificates
+
+
+@router.get("/certificates/{certificate_id}")
+async def get_certificate(
+    certificate_id: str, runtime: Container = Depends(get_container)
+):
+    certificate = await runtime.client.get_certificate(certificate_id)
+    return certificate

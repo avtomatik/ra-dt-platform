@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/lib/common.sh"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+source "$SCRIPT_DIR/../lib/common.sh"
 SYNC=false
 OPEN_BROWSER=true
 usage() {
@@ -33,7 +33,7 @@ while (($#)); do
     shift
 done
 echo "##############################################"
-echo "       Registry Authority Data Platform"
+echo "       Registration Authority Data Platform"
 echo "                 RADP Showcase"
 echo "##############################################"
 log "Host information"
@@ -62,7 +62,7 @@ if [[ "$SYNC" == true ]]; then
     log "Synchronizing certificates..."
     curl -fsS \
         -X POST \
-        http://127.0.0.1:8000/admin/certificates/sync
+        "${APP_URL}/admin/certificates/sync"
     echo
     log "Certificate synchronization completed."
 else
@@ -72,9 +72,9 @@ fi
 pause
 if [[ "$OPEN_BROWSER" == true ]]; then
     log "Opening RADP interfaces..."
-    open_url "http://127.0.0.1:8000/export/preview"
+    open_url "${APP_URL}/export/preview"
     pause
-    open_url "http://127.0.0.1:8000/export/certificates"
+    open_url "${APP_URL}/export/certificates"
     pause
 fi
 echo
@@ -82,9 +82,9 @@ echo "##############################################"
 echo "             RADP Showcase Ready"
 echo "##############################################"
 echo
-echo "Application: http://127.0.0.1:8000"
-echo "Preview:     http://127.0.0.1:8000/export/preview"
-echo "Inventory:   http://127.0.0.1:8000/export/certificates"
+echo "Application: ${APP_URL}"
+echo "Preview:     ${APP_URL}/export/preview"
+echo "Inventory:   ${APP_URL}/export/certificates"
 echo
 echo "Expected download:"
 echo "  certificates_inventory_YYYY-MM-DD-HH-MM.xlsx"

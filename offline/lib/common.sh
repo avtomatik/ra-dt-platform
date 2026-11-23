@@ -2,7 +2,6 @@
 ###############################################################################
 # Shared helpers for RADP offline preparation, packaging and installation.
 ###############################################################################
-
 set -Eeuo pipefail
 umask 077
 

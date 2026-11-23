@@ -234,11 +234,12 @@ separate forced-refresh/reconciliation operation would be needed if that case mu
 
 ## Operational documentation
 
-- [Administrator runbook](docs/operations/administrator-runbook.md)
-- [Operator guide](docs/operations/operator-guide.md)
+- [Operational scripts and setup](ops/README.md)
+- [Certificate-template naming](docs/operations/certificate-template-names.md)
 - [Access-control prerequisite before broader user exposure](docs/security/access-control-before-user-exposure.md)
 - [0.6.0 release notes](docs/release-notes-0.6.0.md)
-- [RADP template/stabilization review](docs/engineering/radp-template-stabilization-review.md)
+- [Current source and operational review](docs/engineering/radp-operational-review.md)
+- Template/stabilization review: produced separately; not included in this archive.
 - [0.5.1 implementation release notes](docs/release-notes-0.5.1.md)
 
 

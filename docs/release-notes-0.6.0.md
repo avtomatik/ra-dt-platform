@@ -6,4 +6,4 @@
 - Malformed X.509 extensions generate a warning instead of silently suppressing all metadata.
 - Removed two unreferenced helpers; no API, database schema or reporting-column changes.
 
-See [engineering review](engineering/radp-template-stabilization-review.md) for decisions, limitations, and additional candidates. The supplied `cert-report` archive was encrypted; its code was not available for a grounded comparison.
+The companion engineering review is not bundled with this source archive; see the project tests and release notes for implemented behavior. The supplied `cert-report` archive was encrypted; its code was not available for a grounded comparison.

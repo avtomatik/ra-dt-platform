@@ -3,28 +3,29 @@ set -Eeuo pipefail
 ###############################################################################
 # Resolve operational and application directories.
 ###############################################################################
-OPS_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-PROJECT_DIR="${RADP_PROJECT_DIR:-$(cd -- "$OPS_DIR/.." && pwd)}"
+OPS_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
+PROJECT_DIR="${RADP_PROJECT_DIR:-$(cd -- "$OPS_DIR/.." && pwd -P)}"
 ###############################################################################
 # Project configuration.
 ###############################################################################
 APP_SERVICE="${RADP_APP_SERVICE:-platform}"
-HEALTH_URL="${RADP_HEALTH_URL:-http://127.0.0.1:8000/health}"
+APP_URL="${RADP_APP_URL:-http://127.0.0.1:9000}"
+APP_URL="${APP_URL%/}"
+HEALTH_URL="${RADP_HEALTH_URL:-${APP_URL}/health}"
 ###############################################################################
-# Resolve the directory containing the calling script.
+# Docker Compose compatibility (resolved only when an operation needs Docker).
+# In particular, --help must work without Docker being installed.
 ###############################################################################
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[1]}")/.." && pwd)"
-###############################################################################
-# Docker Compose compatibility.
-###############################################################################
-if docker compose version >/dev/null 2>&1; then
-    COMPOSE=(docker compose)
-elif command -v docker-compose >/dev/null 2>&1; then
-    COMPOSE=(docker-compose)
-else
-    echo "ERROR: Docker Compose is not installed." >&2
-    exit 1
-fi
+COMPOSE=()
+resolve_compose() {
+    if docker compose version >/dev/null 2>&1; then
+        COMPOSE=(docker compose)
+    elif command -v docker-compose >/dev/null 2>&1; then
+        COMPOSE=(docker-compose)
+    else
+        die "Docker Compose is not installed."
+    fi
+}
 log() {
     printf '\n>>> %s\n' "$*"
 }
@@ -46,10 +47,14 @@ enter_project() {
     cd "$PROJECT_DIR"
     [[ -f docker-compose.yml || -f compose.yml || -f compose.yaml ]] ||
         die "Docker Compose configuration not found in $PROJECT_DIR"
+    resolve_compose
     docker info >/dev/null 2>&1 ||
         die "Docker daemon is unavailable."
 }
 compose() {
+    if ((${#COMPOSE[@]} == 0)); then
+        resolve_compose
+    fi
     "${COMPOSE[@]}" "$@"
 }
 validate_compose() {
