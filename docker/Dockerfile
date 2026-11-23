@@ -1,8 +1,12 @@
-FROM python:3.14-slim
+ARG PYTHON_BASE_IMAGE
+FROM ${PYTHON_BASE_IMAGE}
 
-ARG RADP_CONTAINER_USER
-ARG RADP_CONTAINER_UID
-ARG RADP_CONTAINER_GID
+ARG HTTP_PROXY
+ARG HTTPS_PROXY
+ARG NO_PROXY
+ARG DEPLOY_CONTAINER_GID
+ARG DEPLOY_CONTAINER_UID
+ARG DEPLOY_CONTAINER_USER
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
@@ -15,13 +19,13 @@ RUN apt-get update && \
         ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-RUN groupadd --gid "${RADP_CONTAINER_GID}" "${RADP_CONTAINER_USER}" \
+RUN groupadd --gid "${DEPLOY_CONTAINER_GID}" "${DEPLOY_CONTAINER_USER}" \
     && useradd \
-        --uid "${RADP_CONTAINER_UID}" \
-        --gid "${RADP_CONTAINER_GID}" \
+        --gid "${DEPLOY_CONTAINER_GID}" \
+        --uid "${DEPLOY_CONTAINER_UID}" \
         --create-home \
         --shell /bin/bash \
-        "${RADP_CONTAINER_USER}"
+        "${DEPLOY_CONTAINER_USER}"
 
 COPY pyproject.toml uv.lock ./
 
@@ -36,9 +40,9 @@ COPY data ./data
 
 RUN mkdir -p /app/data/exports
 
-RUN chown -R "${RADP_CONTAINER_UID}:${RADP_CONTAINER_GID}" /app
+RUN chown -R "${DEPLOY_CONTAINER_UID}:${DEPLOY_CONTAINER_GID}" /app
 
-USER ${RADP_CONTAINER_USER}
+USER ${DEPLOY_CONTAINER_USER}
 
 EXPOSE 9000
 

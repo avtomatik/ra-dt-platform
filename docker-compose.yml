@@ -1,10 +1,11 @@
 services:
   postgres:
-    image: postgres:17
+    image: ${DEPLOY_POSTGRES_IMAGE:?Set DEPLOY_POSTGRES_IMAGE}
     pull_policy: never
     container_name: radp-postgres
     restart: unless-stopped
     environment:
+      DEPLOY_POSTGRES_IMAGE: ${DEPLOY_POSTGRES_IMAGE}
       POSTGRES_DB: ${RADP_DATABASE__DATABASE}
       POSTGRES_USER: ${RADP_DATABASE__USERNAME}
       POSTGRES_PASSWORD: ${RADP_DATABASE__PASSWORD}
@@ -49,9 +50,16 @@ services:
       context: .
       dockerfile: docker/Dockerfile
       args:
-        RADP_CONTAINER_USER: ${RADP_CONTAINER_USER}
-        RADP_CONTAINER_UID: ${RADP_CONTAINER_UID}
-        RADP_CONTAINER_GID: ${RADP_CONTAINER_GID}
+        PYTHON_BASE_IMAGE: ${DEPLOY_PYTHON_BASE_IMAGE:?Set DEPLOY_PYTHON_BASE_IMAGE}
+        HTTP_PROXY: ${DEPLOY_HTTP_PROXY:-}
+        HTTPS_PROXY: ${DEPLOY_HTTPS_PROXY:-}
+        NO_PROXY: ${DEPLOY_NO_PROXY:-}
+        http_proxy: ${DEPLOY_HTTP_PROXY:-}
+        https_proxy: ${DEPLOY_HTTPS_PROXY:-}
+        no_proxy: ${DEPLOY_NO_PROXY:-}
+        DEPLOY_CONTAINER_GID: ${DEPLOY_CONTAINER_GID:?Set DEPLOY_CONTAINER_GID}
+        DEPLOY_CONTAINER_UID: ${DEPLOY_CONTAINER_UID:?Set DEPLOY_CONTAINER_UID}
+        DEPLOY_CONTAINER_USER: ${DEPLOY_CONTAINER_USER:?Set DEPLOY_CONTAINER_USER}
     container_name: radp-platform
     restart: unless-stopped
     ports:
@@ -73,12 +81,15 @@ services:
       ofelia.job-exec.sync.command: >
         /app/.venv/bin/python -m radp sync run
       ofelia.job-exec.sync.no-overlap: "true"
+      ofelia.job-exec.sync.user: "${DEPLOY_CONTAINER_USER:?Set DEPLOY_CONTAINER_USER}"
 
   scheduler:
-    image: mcuadros/ofelia:latest
+    image: ${DEPLOY_OFELIA_IMAGE:?Set DEPLOY_OFELIA_IMAGE}
     pull_policy: never
     container_name: radp-scheduler
     restart: unless-stopped
+    environment:
+      DEPLOY_OFELIA_IMAGE: ${DEPLOY_OFELIA_IMAGE}
     command: ["daemon", "--docker"]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
